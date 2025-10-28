@@ -111,8 +111,8 @@ close(20)
 !calculate the gas density
 vt_values = (/ 200.0d0, 250.0d0, 300.0d0, 350.0d0, 400.0d0 /) !vt appartien a intervallo 200-400 km/s 
 do ivt = 1, nvt !testare i valori di vt 
-  vt_kms = vt_values(ivt) !conversione in m/s
-  vturbl = vt_kms * 1.0d5 !conversione in m/s
+  vt_kms = vt_values(ivt)
+  vturbl = vt_kms * 1.0d5 !conversione in cm/s
    
   lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
   do j=2,jmax
