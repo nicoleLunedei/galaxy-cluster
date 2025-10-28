@@ -1,6 +1,6 @@
 !******************************************************************
-!  this program solves the hydrostatic equilibrium equation
-!  for an isothermal gas in a NFW halo
+!  Programma non ottimizzato con BCG + gradT e calcolo di rhobest
+! (prima versione di Andrea)
 !*****************************************************************
 
 parameter(jmax=5000)
