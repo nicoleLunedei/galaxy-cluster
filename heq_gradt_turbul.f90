@@ -5,7 +5,7 @@ real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
         grvnfw(jmax),lnd(jmax), mdm_analytic(jmax), T(jmax), lnT(jmax),&
         Mgas(jmax)
 real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, fb
-integer, parameter :: nvt = 5
+integer, parameter :: nvt = 4
 real*8, dimension(nvt) :: vt_values
 real*8, dimension(jmax, nvt) :: Mgas_vt, rho_vt
 real*8, dimension(nvt) :: fb_vt
@@ -109,7 +109,7 @@ enddo
 close(20)
 
 !calculate the gas density
-vt_values = (/ 200.0d0, 250.0d0, 300.0d0, 350.0d0, 400.0d0 /) !vt appartien a intervallo 200-400 km/s 
+vt_values = (/ 200.0d0, 300.0d0, 400.0d0, 500.0d0 /) !vt appartien a intervallo 200-400 km/s 
 do ivt = 1, nvt !testare i valori di vt 
   vt_kms = vt_values(ivt)
   vturbl = vt_kms * 1.0d5 !conversione in cm/s
@@ -136,7 +136,7 @@ do j=1,jmax
    write(20,1000)rr(j)/cmkpc,(rho_vt(j, ivt), ivt = 1, nvt),rhonfw(j)   !!restituisce i punti, la densità  numerica e la densità analitica, massa gas, raggio viriale e baryon fraction
 end do
 close(20)
-1000 format(7(1pe12.4))
+1000 format(6(1pe12.4))
 
 open(21, file='fb_gradT_turbl.dat', status='unknown')
 do ivt = 1, nvt
