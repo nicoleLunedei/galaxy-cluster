@@ -1,6 +1,7 @@
 !******************************************************************
 !  this program solves the hydrostatic equilibrium equation
-!  for a gas in a NFW halo with a non zero T gradient and mass of the BCG included
+!  for a gas in a NFW halo with a non zero T gradient and mass 
+! of the BCG included (prima versione di Claudia)
 !*****************************************************************
 
 parameter(jmax=5000)
