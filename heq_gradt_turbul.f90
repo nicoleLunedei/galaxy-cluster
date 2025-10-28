@@ -112,23 +112,23 @@ close(20)
 vt_values = (/ 200.0d0, 250.0d0, 300.0d0, 350.0d0, 400.0d0 /) !vt appartien a intervallo 200-400 km/s 
 do ivt = 1, nvt !testare i valori di vt 
   vt_kms = vt_values(ivt) !conversione in m/s
-vturbl = vt_kms * 1.0d3 !conversione in m/s
+  vturbl = vt_kms * 1.0d3 !conversione in m/s
    
-lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
-do j=2,jmax
-   gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
-end do
+  lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
+  do j=2,jmax
+     gg=grvnfw(j)
+     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
+  end do
 
 !calcolo rho e mgas per diversi valori di vturbl
-rho_vt(1, ivt) = exp(lnd(1))
-Mgas_vt(1, ivt) = 0.0d0
-do j=2,jmax
-   rho_vt(j, ivt)=exp(lnd(j)) 
-   Mgas_vt(j, ivt) = Mgas_vt(j-1, ivt) + rho_vt(j-1, ivt) * vol(j)
-enddo
+  rho_vt(1, ivt) = exp(lnd(1))
+  Mgas_vt(1, ivt) = 0.0d0
+  do j=2,jmax
+     rho_vt(j, ivt)=exp(lnd(j)) 
+     Mgas_vt(j, ivt) = Mgas_vt(j-1, ivt) + rho_vt(j-1, ivt) * vol(j)
+  end do
 
-fb_vt(ivt) = (mhern(jmax) + Mgas_vt(jmax, ivt))/(mnfw(jmax) + mhern(jmax) + Mgas_vt(jmax, ivt))!!baryon fraction
+  fb_vt(ivt) = (mhern(jmax) + Mgas_vt(jmax, ivt))/(mnfw(jmax) + mhern(jmax) + Mgas_vt(jmax, ivt))!!baryon fraction
 end do
 
 open(20,file='density_gradT_turbl.dat',status='unknown')
