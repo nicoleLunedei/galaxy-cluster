@@ -274,36 +274,33 @@ do i = 1, maxiter
 
    !density profile test
 
-do ivt = 1, nvt !testare i valori di vt 
-  vt_kms = vt_values(ivt)
-  vturbl = vt_kms * 1.0d5 !conversione in cm/s
+   do ivt = 1, nvt !testare i valori di vt 
+      vt_kms = vt_values(ivt)
+      vturbl = vt_kms * 1.0d5 !conversione in cm/s
    
-  lnd(1)=log(rho0test)          !! mette il gas in eq. con il potenziale
-  do j=2,jmax
-     gg=grvnfw(j)
-     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
-  end do
+      lnd(1)=log(rho0test)          !! mette il gas in eq. con il potenziale
+      do j=2,jmax
+         gg=grvnfw(j)
+         lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
+      end do
 
 !calcolo rho e mgas per diversi valori di vturbl
-  mg(1, ivt)=0.d0
-     do j = 1, jmax
-      rho_vt(j, ivt) = exp(lnd(j))
-   enddo
-   do j = 2, jmax
-      mg(j, ivt) = mg(j-1, ivt) + rho_vt(j-1, ivt)*vol(j, ivt)
-   
+      mg(1, ivt)=0.d0
+      do j = 1, jmax
+         rho_vt(j, ivt) = exp(lnd(j))
+      end do
+      do j = 2, jmax
+         mg(j, ivt) = mg(j-1, ivt) + rho_vt(j-1, ivt)*vol(j, ivt)
+      end do
+
+      mtotvir(ivt) = mnfw(jvir) + mhern(jvir) + mg(jvir, ivt)
+      mgasvir(ivt) = mg(jvir, ivt)
+      fb_vt(ivt) = mgasvir(ivt) / mtotvir(ivt)
+      
+      !fb_vt(ivt) = (mhern(jmax) + mg(jmax, ivt))/(mnfw(jmax) + mhern(jmax) + mg(jmax, ivt))!!baryon fraction
    end do
-
-   mtotvir(ivt) = mnfw(jvir) + mhern(jvir) + mg(jvir, ivt)
-   mgasvir(ivt) = mg(jvir, ivt)
-   fb_vt(ivt) = mgasvir(ivt) / mtotvir(ivt)
-
-
-  fb_vt(ivt) = (mhern(jmax) + mg(jmax, ivt))/(mnfw(jmax) + mhern(jmax) + mg(jmax, ivt))!!baryon fraction
-end do
-
-
-if (abs(fb_vt - fb_target) < tol) then
+   
+   if (abs(fb_vt - fb_target) < tol) then
       print *, 'rho0best = ', rho0test, ' -> f_b =', fb_vt, 'jvir =', jvir
       exit
    endif
@@ -319,14 +316,12 @@ if (abs(fb_vt - fb_target) < tol) then
       print *, 'max iterations'
    endif
 end do
-
 rho0_vt = rho0test
 
 
-
+!*****************************
 !end turbrho0test*************
-
-
+!*****************************
 
 print *, 'densities0', rho0, rho0nobcg, rho0thermal
 
