@@ -78,7 +78,7 @@ aml=7.5    !! this is the mass to light ratio
 do j=1,jmax
    x=rr(j)/rs
    rhonfw(j)=rho0nfw/(x*(1.+x)**2)
-   rhost(j)=mbcg/(2.*pi)*(ahern/rr(j))/(ahern+rr(j))**3
+   rhost(j)=mbcg/(2.*pi)*(ahern/rr(j))/(ahern+rr(j))**3 !densta analitica
 enddo
 
 open(20,file='masse.dat')
@@ -103,13 +103,16 @@ enddo
 1002 format(2(1pe12.4))
 close(20)
 !
-! Temperature profile
+!inizia parte 2 del projet1
+! Temperature profile 
 !
-  temp0=8.12e7
+
+!identifica costanti
+  temp0=8.12e7 
   rtemp1=71.
   rtemp2=71.
   r0bill=40.
-  t0bill=0.9
+  t0bill=0.9 
   tmaxbill=4.8
   tcoeffbill=tmaxbill-t0bill
   pbill=1.8
@@ -118,15 +121,16 @@ close(20)
   qplusp = qbill + pbill
   sinv=1./sbill
 !
+!profilo temperatura calcolato ma in che modo??
 open(20,file='temperature.dat',status='unknown')
  do j=1,jmax
     rkpc=rr(j)/cmkpc
     roverr0 = rkpc/r0bill
     temp1 = t0bill + tcoeffbill * roverr0**pbill
-    cut=0.0
-    temp2 = tmaxbill/(cut*(rkpc/60.)**2 + roverr0**qbill)
-    ttt = 1./( (1./temp1)**sbill + (1./temp2)**sbill )**sinv
-    tcorr = -0.12*exp(-rkpc/1.5)
+    cut=0.0 !cutoff?
+    temp2 = tmaxbill/(cut*(rkpc/60.)**2 + roverr0**qbill) !profilo di temperatura 2
+    ttt = 1./( (1./temp1)**sbill + (1./temp2)**sbill )**sinv !ttt intervallo?
+    tcorr = -0.12*exp(-rkpc/1.5) !t corente
     tem(j) = (ttt + tcorr)*1.e7    !! this is for NGC 5044 !!
     x=rr(j)/r500
     xx=x/0.045
@@ -143,7 +147,7 @@ close(20)
 lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
 do j=2,jmax
    gg=grvnfw(j)
-   temmed=0.5*(tem(j)+tem(j-1))
+   temmed=0.5*(tem(j)+tem(j-1)) !temperatura media
 !! isoth !!   lnd(j)=lnd(j-1)-gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*ticm)
    lnd(j)=lnd(j-1)-gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*temmed) &
           - (log(tem(j)) - log(tem(j-1))) 
@@ -188,26 +192,27 @@ close(20)
 
 !! Set the initial abundance profile
 
-zfeout=0.4*zfesol   !! this is the background abundance !!
+zfeout=0.4*zfesol   !! this is the background abundance -->viene considerato solo ferro
 
 do j=1,jmax
    x=rr(j)/(80.*cmkpc)
    zfeobs(j)=zfesol*0.3*1.4*1.15*(2.2+x**3)/(1+x**3)/1.15  !Perseus!
-   zfeobs(j)=zfeobs(j) - zfeout   !! subtract z_Fe,out
-   zfeobs(j)=max(zfeobs(j),0.)
+   zfeobs(j)=zfeobs(j) - zfeout   !! subtract z_Fe,out-->tolto il background
+   zfeobs(j)=max(zfeobs(j),0.) !calcola il max-->per successivo controllo
    zfe(j)=0. !!zfeout !!zfeobs(j)  !! which initial zfe? !!
-   rhofe(j)=rho(j)*zfe(j)/1.4
+   rhofe(j)=rho(j)*zfe(j)/1.4 
    rhofeobs(j)=rho(j)*zfeobs(j)/1.4
 enddo
 
  do j=1,jmax
-    zfest(j)=1.*zfesol    !! set the stellar abundance !!
+    zfest(j)=1.*zfesol    !! ferro nella stella
  enddo
 
 !! Calculate the initial excess of iron mass
 
-amfeiniz(1)=rhofe(1)*vol(1)
-amfeiniz(1)=rhofeobs(1)*vol(1)
+amfeiniz(1)=rhofe(1)*vol(1) !massa del ferro iniziale teorica
+amfeiniz(1)=rhofeobs(1)*vol(1) !massa del ferro iniziale numerica
+!calcolo massa in modo discreto
 do j=2,jmax
    amfeiniz(j)=amfeiniz(j-1)+rhofe(j-1)*vol(j)
    amfeobs(j)=amfeobs(j-1)+rhofeobs(j-1)*vol(j)
@@ -230,25 +235,25 @@ close(20)
 
 !! boundary conditions (outflows)
 
-zfe(1)=zfe(2)
+zfe(1)=zfe(2) !per non avere discontinutà agli estremi-->settare i punti corretti per successivi calcoli
 zfe(jmax)=zfe(jmax-1)
 rhofe(1)=rho(1)*zfe(1)/1.4
 rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
 
-!! Here start the time integration (use FTCS method)
+!! Here start the time integration (use FTCS method) !ftcs unico metodo stabile per il problema
 
  print*,'dai ncycle'
  read(*,*)ncycle
- tend=tnow
+ tend=tnow !per integrare fino al tempo corrente (oggi)
 
 !!  set the diffusion coefficient kappa = C*v*l (for now constant)
 
- open(20,file='kappa.dat',status='unknown')
+ open(20,file='kappa.dat',status='unknown')! kappa è d cioè coeff. di diffusione
  vturb=260.e5   !! come Perseus !!
  lturb=15.*cmkpc  !! this is quite uncertain !!
- rscala=30.*cmkpc
+ rscala=30.*cmkpc !raggio scalar
 
- kappa=0.11*vturb*lturb
+ kappa=0.11*vturb*lturb !coeff. diffusione
 
 !! do j=1,jmax    !! for variable kappa
 !!!    kappa(j)=0.11*vturb*lturb   !! constant !!
@@ -278,10 +283,10 @@ rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
 !!  print*,'alphast,sn = ',alphast,alphasn
 
  do j=2,jmax-2
-    rhofedot(j)=(alphast*zfest(j)/1.4+alphasn*zfesn)*rhost(j)
+    rhofedot(j)=(alphast*zfest(j)/1.4+alphasn*zfesn)*rhost(j) !rhost= rho stellar
  enddo
 
-!! the equation to be solved is d(n*zfe)/dt = div(kappa*n*grad(zfe)) + S
+!! the equation to be solved is d(n*zfe)/dt = div(kappa*n*grad(zfe)) + S 
 !! (according to Rebusco et al. 2006)
 !! Use the FTCS scheme.
 
@@ -291,13 +296,13 @@ rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
  do j=2,jmax-1
 !!!    write(70,*)rhofe(j),dt*rhofedot(j)
 !!!    if(j.eq.5)print*,'azz ',dt,rhofe(j),dt*rhofedot(j),rhofedot(j)
-    rhofe(j)=rhofe(j) + dt*rhofedot(j)
+    rhofe(j)=rhofe(j) + dt*rhofedot(j) !cambiamento di rhofe nel tempo (dt)
     zfe(j)=rhofe(j)/rho(j) * 1.4
  enddo
 
-!! set the boundary conditions (outflows)
+!! set the boundary conditions (outflows) -->sono cambiati i valori rispetto a prima
 
-      zfe(1)=zfe(2)
+      zfe(1)=zfe(2) 
       zfe(jmax)=zfe(jmax-1)
       rhofe(1)=rhofe(2)
       rhofe(jmax)=rhofe(jmax-1)
@@ -313,13 +318,14 @@ rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
  gradzfe(jmax)=0.
 
  do j=2,jmax-1
-    rhojp1=0.5*(rho(j+1)+rho(j))  !! rho centered at "j+1" !!
-    rhoj=0.5*(rho(j-1)+rho(j))    !! rho centered at "j" !!
+    rhojp1=0.5*(rho(j+1)+rho(j))  !! vogliamo ricavre rho ricavata con la prima griglia. per farlo rho si calcola come punto medio di intervallo griglia 1--> rho centered at 'j+1' !!
+    rhoj=0.5*(rho(j-1)+rho(j))    !! stesso ragionamento-->rho centered at j-1/2 !!
+    !non è j del loop è il j della griglia 1
     rhofe(j)=rhofe(j) &
             + (dt/1.4)*(r(j+1)**2*kappa(j+1)*rhojp1*gradzfe(j+1) &
             -r(j)**2*kappa(j)*rhoj*gradzfe(j))   &
              / (0.33333333*(r(j+1)**3-r(j)**3))
-         zfe(j)=1.4*rhofe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !!
+         zfe(j)=1.4*rhofe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
       enddo
 2000  format(3(1pe12.4))
 
@@ -331,8 +337,8 @@ rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
       rhofe(jmax)=rhofe(jmax-1)
 777   continue
 
-      if (time.ge.tend) goto1001
-      if (n.ge.ncycle) goto1001
+      if (time.ge.tend) goto1001 !ge= Greater than or Equal
+      if (n.ge.ncycle) goto1001 
 
       goto 1000
 
@@ -344,7 +350,7 @@ rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
 
 !! calcola la massa di Fe al tempo finale
 
-      amfe(1)=rhofe(1)*vol(1)
+      amfe(1)=rhofe(1)*vol(1) !massa ferro
       do j=2,jmax
          amfe(j)=amfe(j-1)+rhofe(j-1)*vol(j)
       enddo
