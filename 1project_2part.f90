@@ -1,294 +1,369 @@
-!******************************************************************
-!  Programma ottimizzato con BCG + gradT + turbolenza con una
-!  sola velocità (250 km/s) e calcolo di rho0
+!*****************************************************************2
+!  Program for project 1- Calcolo 20121. 
+!  Solves the hydrostatic equilibrium equation in a NFW+BCG potential
+!  Then solves the Fe diffusion eq. (for Perseus)
 !*****************************************************************
-module constants     
-    implicit none
-    real*8, parameter :: msol = 1.989d33
-    real*8, parameter :: cmkpc = 3.084e21
-    real*8, parameter :: mu = 0.62d0
-    real*8, parameter :: boltz = 1.38066e-16
-    real*8, parameter :: guniv = 6.6720e-8
-    real*8, parameter :: mp = 1.67265e-24
 
-    real*8, parameter :: rho0nfw = 7.35d-26
-    real*8, parameter :: rs = 435.7d0 * cmkpc
-    real*8, parameter :: ticm = 8.9d7
-    real*8, parameter :: rvir = 2797.d0 * cmkpc
-    real*8, parameter :: fc = 1.138799d0
-    real*8, parameter :: mvir = 1.3d15 * msol
-    real*8, parameter :: ahern = 10.d0 * cmkpc / (1.d0 + sqrt(2.d0))
-    real*8, parameter :: r500 = rvir / 2.d0
-end module constants
+parameter(jmax=5000)
+implicit real*8 (a-h,o-z)
+real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
+        rhost(jmax),rho(jmax),mhern(jmax),rhonfw(jmax),mdark(jmax),&
+        grvnfw(jmax),lnd(jmax),tem(jmax),tem2(jmax),mgas(jmax),&
+        fbarr(jmax),fgasr(jmax)
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbcg,ahern,lsol,h,me,&
+          ne0,alphast,alphasn,zfesn
 
-program heq_prova
-    use constants
-    parameter(jmax=5000)
-    implicit real*8 (a-h,o-z)
-    integer :: j
-    real*8, dimension(jmax) :: r, rr, vol, mnfw, mdark, mhern, grv, gradT, T
-    real*8, dimension(jmax) :: rho_nobcg, rho_bcg, rho_thermal, rho_vt
-    real*8, dimension(jmax) :: mg_nobcg, mg_bcg, mg_thermal, mg_vt
-    real*8 :: fb_nobcg, fb_bcg, fb_thermal, fb_target
-    real*8 :: vt_kms, mbgc_nonzero
+real*8, dimension(jmax) :: u(jmax),flux(jmax),ne(jmax),zfe(jmax),& 
+        kappa(jmax),lturb,rhofedot(jmax),rhofe(jmax),zfest(jmax),&
+        amfeiniz(jmax),amfe(jmax),gradzfe(jmax),zfeobs(jmax),&
+        amfeobs(jmax),rhofeobs(jmax)
 
-    vt_kms = 250.0d0
-    mbgc_nonzero = 1.d12 * msol
+!  constants
 
-    !************************************************************
-    ! rhobest per fb = 0.16??
-    !************************************************************
-        
-    call rhotest(0.0d0, 0.0d0 , 0.0d0 , rho0_nobcg, fb_nobcg)
-    call rhotest(mbgc_nonzero, 0.0d0 , 0.0d0 , rho0_bcg, fb_bcg)
-    call rhotest(mbgc_nonzero, 1.0d0 , 0.0d0 , rho0_thermal, fb_thermal)
-    call rhotest(mbgc_nonzero, 1.0d0 , vt_kms , rho0_vt, fb_vt)
+pi=3.14159265359
+msol = 1.989d33
+cmkpc = 3.084e21
+years=3.156d7
+mu=0.61
+boltz=1.38066e-16
+guniv=6.6720e-8
+mp=1.67265e-24
+zfesol=1.8e-3
+zfesn=0.744/1.4
+snu=0.5
 
-    !****************************************************************************************************
-    !end turb rho0test*************
-    !****************************************************************************************************
+tnow=13.7*1.e9*years
+time0=tnow-5.*1.e9*years
+time=time0
 
-    print *, 'rho0:', rho0_nobcg, rho0_bcg, rho0_thermal, rho0_vt
+!    set the grid
 
-    !*******************************************************************************
-    !DENSITIES
-    !*******************************************************************************
+rmin = 0*cmkpc
+rmax = 2800.*cmkpc
+do j=1,jmax
+   r(j)=rmin+(j-1)*rmax/(jmax-1)
+enddo
+do j=1,jmax-1
+   rr(j)=r(j)+0.5*(r(j+1)-r(j))
+enddo
+rr(jmax)=rr(jmax-1)+(rr(jmax-1)-rr(jmax-2))
+open(10,file='grid.dat',status='unknown')
+do j=1,jmax
+   write(10,*)j,real(r(j)/cmkpc),real(rr(j)/cmkpc)
+enddo
+close(10)
 
-    CALL rho_gas(0.0d0, 0.0d0, rho0_nobcg, 0d0, rho_nobcg, mg_nobcg)            !NO BCG
-    CALL rho_gas(mbgc_nonzero, 0.0d0, rho0_bcg, 0d0, rho_bcg, mg_bcg)   !BCG+ISOTHERMAL
-    CALL rho_gas(mbgc_nonzero, 1.0d0, rho0_thermal, 0d0, rho_thermal, mg_thermal)   !BCG+GRADT
-    CALL rho_gas(mbgc_nonzero, 1.0d0, rho0_vt, vt_kms, rho_vt, mg_vt)   !BCG+GRADT+TURBOL
+vol(1)=4.1888*r(1)**3
+do j=2,jmax
+   vol(j)=4.1888*(r(j)**3-r(j-1)**3)    !! centered in rr(j-1) !!
+enddo
 
-    open(20,file='density_prova.dat',status='unknown')
-    do j=1, jmax
-        write(20,1000)rr(j)/cmkpc,rho_nobcg(j),rho_bcg(j),rho_thermal(j),rho_vt(j)
-    enddo
-    close(20)
-    1000 format(5(1pe12.4))
+!  problem parameters
 
-    open(20,file='gasmass_prova.dat')
-    do j=1,jmax
-        write(20,1006)r(j)/cmkpc,mg_nobcg(j)/msol,mg_bcg(j)/msol,mg_thermal(j)/msol, mg_vt(j)/msol
-    enddo
-    1006 format(5(1pe12.4))
-    close(20)
+rho0nfw=7.35d-26
+rs=435.7*cmkpc
+!!rho0=4.d-26   !! 5000 points, with BCG, isothermal gas !!old: 2.882d-26
+!!rho0=9.d-26   !! 5000 points, with BCG !!
+rho0=1.6d-25   !! 5000 points, with BCG and dT/dr !!
+ticm=8.9e7
 
-    print*, 'baryon fractions:', fb_nobcg, fb_bcg, fb_thermal, fb_vt
+rvir=2797.*cmkpc
+r500=rvir/2.
+fc=1.138799
+mvir=1.3e15*msol
+mbcg=1.d12*msol
+ahern=12.*cmkpc/(1.+2.**(0.5))
+aml=7.5    !! this is the mass to light ratio 
+
+do j=1,jmax
+   x=rr(j)/rs
+   rhonfw(j)=rho0nfw/(x*(1.+x)**2)
+   rhost(j)=mbcg/(2.*pi)*(ahern/rr(j))/(ahern+rr(j))**3
+enddo
+
+open(20,file='masse.dat')
+mnfw(1)=0.
+mhern(1)=0.
+do j=2,jmax
+   x=r(j)/rs
+   mnfw(j)=mnfw(j-1)+rhonfw(j-1)*vol(j)
+   mdark(j)=mvir*(log(1.+x)-x/(1.+x))/fc
+   mhern(j)=mbcg*r(j)**2/(r(j)+ahern)**2
+   write(20,1101)r(j)/cmkpc,mnfw(j)/msol,mdark(j)/msol,mhern(j)/msol
+enddo
+1101 format(4(1pe12.4))
+close(20)
+
+open(20,file='grv.dat')
+grvnfw(1)=0.
+do j=2,jmax
+   grvnfw(j)=guniv*(mnfw(j)+ mhern(j))/r(j)**2   !! with BCG !!
+   write(20,1002)r(j)/cmkpc,grvnfw(j)/msol
+enddo
+1002 format(2(1pe12.4))
+close(20)
+!
+! Temperature profile
+!
+  temp0=8.12e7
+  rtemp1=71.
+  rtemp2=71.
+  r0bill=40.
+  t0bill=0.9
+  tmaxbill=4.8
+  tcoeffbill=tmaxbill-t0bill
+  pbill=1.8
+  qbill=0.2  !!0.15
+  sbill=1.6
+  qplusp = qbill + pbill
+  sinv=1./sbill
+!
+open(20,file='temperature.dat',status='unknown')
+ do j=1,jmax
+    rkpc=rr(j)/cmkpc
+    roverr0 = rkpc/r0bill
+    temp1 = t0bill + tcoeffbill * roverr0**pbill
+    cut=0.0
+    temp2 = tmaxbill/(cut*(rkpc/60.)**2 + roverr0**qbill)
+    ttt = 1./( (1./temp1)**sbill + (1./temp2)**sbill )**sinv
+    tcorr = -0.12*exp(-rkpc/1.5)
+    tem(j) = (ttt + tcorr)*1.e7    !! this is for NGC 5044 !!
+    x=rr(j)/r500
+    xx=x/0.045
+    tem2(j)=ticm*1.35*(xx**1.9+0.45)/(xx**1.9+1.)* &   !! this is for Perseus !!
+        1./(1.+(x/0.6)**2)**0.45
+       tem(j)=tem2(j)  !!ticm --> for Perseus
+    write(20,1003)rr(j)/cmkpc,tem(j),tem2(j),ticm
+ enddo
+close(20)
+1003 format(4(1pe12.4))
+
+!     calculate the gas density, assuming ticm
+
+lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
+do j=2,jmax
+   gg=grvnfw(j)
+   temmed=0.5*(tem(j)+tem(j-1))
+!! isoth !!   lnd(j)=lnd(j-1)-gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*ticm)
+   lnd(j)=lnd(j-1)-gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*temmed) &
+          - (log(tem(j)) - log(tem(j-1))) 
+enddo
+
+do j=1,jmax
+   rho(j)=exp(lnd(j))
+enddo
+
+open(20,file='density.dat',status='unknown')
+do j=1,jmax
+   write(20,1101)rr(j)/cmkpc,rho(j),rhonfw(j),rhost(j)
+enddo
+close(20)
+
+open(20,file='mgas.dat',status='unknown')
+mgas(1)=rho(j)*4.188*r(1)**3
+do j=2,jmax
+   mgas(j)=mgas(j-1)+rho(j-1)*vol(j)
+   write(20,1100)r(j)/cmkpc,mgas(j)/msol,mnfw(j)/msol
+enddo
+close(20)
+
+!!fbar=mgas(jmax-1)/(mnfw(jmax-1)+mgas(jmax-1))
+fbar=(mhern(jmax-1)+mgas(jmax-1))/(mnfw(jmax-1)+mgas(jmax-1)+mhern(jmax-1))
+fgas=(mgas(jmax-1))/(mnfw(jmax-1)+mgas(jmax-1)+mhern(jmax-1))
+print*,'fbari, fgas = ',real(fbar), real(fgas)
+
+open(20,file='barfrac.dat')
+do j=2,jmax-1
+   fbarr(j)=(mhern(j)+mgas(j))/(mnfw(j)+mgas(j)+mhern(j))
+   fgasr(j)=(mgas(j))/(mnfw(j)+mgas(j)+mhern(j))
+   write(20,1100)r(j)/cmkpc,fbarr(j),fgasr(j)
+enddo
+close(20)
+1100 format(4(1pe12.4))
+
+!***********************************************************************
+!! At this point we have the gas density profile and we can proceed
+!! with the integration of the diffusion equation for rhofe
+!***********************************************************************
+
+!! Set the initial abundance profile
+
+zfeout=0.4*zfesol   !! this is the background abundance !!
+
+do j=1,jmax
+   x=rr(j)/(80.*cmkpc)
+   zfeobs(j)=zfesol*0.3*1.4*1.15*(2.2+x**3)/(1+x**3)/1.15  !Perseus!
+   zfeobs(j)=zfeobs(j) - zfeout   !! subtract z_Fe,out
+   zfeobs(j)=max(zfeobs(j),0.)
+   zfe(j)=0. !!zfeout !!zfeobs(j)  !! which initial zfe? !!
+   rhofe(j)=rho(j)*zfe(j)/1.4
+   rhofeobs(j)=rho(j)*zfeobs(j)/1.4
+enddo
+
+ do j=1,jmax
+    zfest(j)=1.*zfesol    !! set the stellar abundance !!
+ enddo
+
+!! Calculate the initial excess of iron mass
+
+amfeiniz(1)=rhofe(1)*vol(1)
+amfeiniz(1)=rhofeobs(1)*vol(1)
+do j=2,jmax
+   amfeiniz(j)=amfeiniz(j-1)+rhofe(j-1)*vol(j)
+   amfeobs(j)=amfeobs(j-1)+rhofeobs(j-1)*vol(j)
+enddo
+
+open(20,file='zfe_initial.dat')
+do j=1,jmax
+   write(20,1500)rr(j)/cmkpc,zfe(j)/zfesol,zfeobs(j)/zfesol, &
+                 r(j)/cmkpc,amfeiniz(j)/msol,amfeobs(j)/msol
+enddo
+close(20)
+1500 format(6(1pe12.4))
+
+open(20,file='initial.dat',status='unknown')
+do j=1,jmax
+   write(20,3001)rr(j)/cmkpc+0.001,zfe(j)/zfesol,zfeobs(j)/zfesol,ne(j)
+enddo
+close(20)
+3001  format(4(1pe12.4))
+
+!! boundary conditions (outflows)
+
+zfe(1)=zfe(2)
+zfe(jmax)=zfe(jmax-1)
+rhofe(1)=rho(1)*zfe(1)/1.4
+rhofe(jmax)=rho(jmax)*zfe(jmax)/1.4
+
+!! Here start the time integration (use FTCS method)
+
+ print*,'dai ncycle'
+ read(*,*)ncycle
+ tend=tnow
+
+!!  set the diffusion coefficient kappa = C*v*l (for now constant)
+
+ open(20,file='kappa.dat',status='unknown')
+ vturb=260.e5   !! come Perseus !!
+ lturb=15.*cmkpc  !! this is quite uncertain !!
+ rscala=30.*cmkpc
+
+ kappa=0.11*vturb*lturb
+
+!! do j=1,jmax    !! for variable kappa
+!!!    kappa(j)=0.11*vturb*lturb   !! constant !!
+!!    kappa(j)=rhost(j)  !!0.333*vturb*lturb   !! constant !!
+!!    kappa(j)=kappa(j)-0.6*kappa(j)*exp(-(r(j)/rscala)**2)
+!!    write(20,*)real(r(j)/cmkpc),kappa(j)
+!! enddo
+ close(20)
+
+      n=0
+1000  continue      !! here start the main time cycle
+      n=n+1
+
+!! calculate the timestep (to be modified if the grid is non-uniform)
+
+      dt=0.4*(r(5)-r(4))**2/(2.*kappa(5))  !! ok for Delta_r costant !!
+      time=time+dt
+!!    print*,'n,dt (yr),time (Gyr) = ',n,real(dt/years), &
+!!            real(time/1.e9/years)
+
+!! write the source terms (SNIa and stellar winds)
+
+ slope=1.1
+ alphast=4.7e-20*(time/tnow)**(-1.26)
+ alphasn=4.436e-20*(snu/aml)*(time/tnow)**(-slope)
+
+!!  print*,'alphast,sn = ',alphast,alphasn
+
+ do j=2,jmax-2
+    rhofedot(j)=(alphast*zfest(j)/1.4+alphasn*zfesn)*rhost(j)
+ enddo
+
+!! the equation to be solved is d(n*zfe)/dt = div(kappa*n*grad(zfe)) + S
+!! (according to Rebusco et al. 2006)
+!! Use the FTCS scheme.
+
+!!      goto776
+!! source step
+
+ do j=2,jmax-1
+!!!    write(70,*)rhofe(j),dt*rhofedot(j)
+!!!    if(j.eq.5)print*,'azz ',dt,rhofe(j),dt*rhofedot(j),rhofedot(j)
+    rhofe(j)=rhofe(j) + dt*rhofedot(j)
+    zfe(j)=rhofe(j)/rho(j) * 1.4
+ enddo
+
+!! set the boundary conditions (outflows)
+
+      zfe(1)=zfe(2)
+      zfe(jmax)=zfe(jmax-1)
+      rhofe(1)=rhofe(2)
+      rhofe(jmax)=rhofe(jmax-1)
+776   continue
+
+!!  goto777
+!  diffusive step   !  check the Fe conservation !
+
+ do j=2,jmax-1
+    gradzfe(j)=(zfe(j)-zfe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
+ enddo
+ gradzfe(1)=0.        !! B.C. !!
+ gradzfe(jmax)=0.
+
+ do j=2,jmax-1
+    rhojp1=0.5*(rho(j+1)+rho(j))  !! rho centered at "j+1" !!
+    rhoj=0.5*(rho(j-1)+rho(j))    !! rho centered at "j" !!
+    rhofe(j)=rhofe(j) &
+            + (dt/1.4)*(r(j+1)**2*kappa(j+1)*rhojp1*gradzfe(j+1) &
+            -r(j)**2*kappa(j)*rhoj*gradzfe(j))   &
+             / (0.33333333*(r(j+1)**3-r(j)**3))
+         zfe(j)=1.4*rhofe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !!
+      enddo
+2000  format(3(1pe12.4))
+
+!! set the boundary conditions (outflows)
+
+      zfe(1)=zfe(2)
+      zfe(jmax)=zfe(jmax-1)
+      rhofe(1)=rhofe(2)
+      rhofe(jmax)=rhofe(jmax-1)
+777   continue
+
+      if (time.ge.tend) goto1001
+      if (n.ge.ncycle) goto1001
+
+      goto 1000
+
+1001  continue
+
+      do j=2,jmax
+         write(99,*)real(log10(r(j)/cmkpc)),real(log10(rhofedot(j)))
+      enddo
+
+!! calcola la massa di Fe al tempo finale
+
+      amfe(1)=rhofe(1)*vol(1)
+      do j=2,jmax
+         amfe(j)=amfe(j-1)+rhofe(j-1)*vol(j)
+      enddo
+
+      write(6,3002)amfe(jmax)/msol,amfeiniz(jmax)/msol,amfeobs(jmax)/msol
+      write(6,3003)amfe(180)/msol,amfeiniz(180)/msol,amfeobs(180)/msol
+3002  format('M_Fe(tot), M_Fein(tot) (Msol) = ',3(1pe12.4))
+3003  format('M_Fe(100kpc), M_Fein(100kpc) (Msol) = ',3(1pe12.4))
+
+!!      print*,'TIME (Gyr) = ',time/3.156e16
+
+      open(21,file='diff.dat',status='unknown')
+      do j=2,jmax
+         write(21,3000)rr(j)/cmkpc,zfe(j)/zfesol
+      enddo
+      close(21)
+3000  format(2(1pe12.4))
 
 stop
-end program heq_prova
-
-!********************************************************************************
-! SUBROUTINE MAIN
-! Calcola grid, profili di massa, temperatura e gravità
-!********************************************************************************
-
-SUBROUTINE main(mbcg, Tprof, r, rr, vol, mnfw, mdark, mhern, T, gradT, grv)
-    use constants
-    implicit real*8 (a-h,o-z)
-    integer :: j
-    parameter(jmax=5000)
-    real*8, INTENT(IN):: mbcg, Tprof 
-    real*8, INTENT(OUT) :: r(jmax), rr(jmax), vol(jmax), mnfw(jmax), mdark(jmax), &
-                            mhern(jmax), T(jmax), gradT(jmax), grv(jmax)
-    real*8 :: x, y, rhonfw(jmax)
-
-    !------------------
-    !!set the grid
-    !------------------
-    rmin = 0.*cmkpc
-    rmax = 3000.*cmkpc
-    do j=1,jmax 
-        r(j)=rmin+(j-1)*rmax/(jmax-1)
-    enddo
-    do j=1,jmax-1
-        rr(j)=r(j)+0.5*(r(j+1)-r(j))
-    enddo
-    rr(jmax)=rr(jmax-1)+(rr(jmax-1)-rr(jmax-2))
-    open(10,file='grid.dat',status='unknown')
-    do j=1,jmax
-        write(10,*)real(r(j)/cmkpc),real(rr(j)/cmkpc)
-    enddo
-    close(10)
-
-    vol(1)=4.1888*r(1)**3
-    do j=2,jmax
-        vol(j)=4.1888*(r(j)**3-r(j-1)**3)    !! centrato a rr(j-1) !!
-    enddo
-
-    !_______________________
-    ! NFW and BCG profiles
-    !_______________________
-    do j=1,jmax
-        x=rr(j)/rs
-        rhonfw(j)=rho0nfw/(x*(1.+x)**2)
-    enddo
-
-    open(20,file='masse_prova.dat')
-    mnfw(1)=0.
-    do j=2,jmax
-        x=r(j)/rs
-        mnfw(j)=mnfw(j-1)+rhonfw(j-1)*vol(j)
-        mdark(j)=mvir*(log(1.+x)-x/(1.+x))/fc
-        mhern(j)=mbgc*r(j)**2/(r(j)+ahern)**2
-        write(20,1001)r(j)/cmkpc,mnfw(j)/msol,mdark(j)/msol,mhern(j)/msol
-    enddo
-    1001 format(4(1pe12.4))
-    close(20)
-
-    !.........................
-    ! Temperatures
-    !.........................
-    open(20, file='temperature_prova.dat')
-    if (Tprof /= 0.0) then
-        do j=1, jmax
-            y=rr(j)/r500
-            T(j)=ticm*1.35d0*((y/0.045d0)**1.9+0.45d0)/((y/0.045d0)**1.9+1)*(1+(y/0.6d0)**2)**(-0.45)
-        end do
-    else
-        do j=1, jmax
-            T(j)=ticm
-        end do
-    end if
-
-    gradT(1)=0.0d0
-    do j=2, jmax
-        gradT(j) = log(T(j)) - log(T(j - 1))
-    end do
-
-    !::::::::::::
-    !gravity
-    !::::::::::::
-    grv(1)=0.        
-    do j=2,jmax
-        grv(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2
-    enddo
-
-return
-end subroutine main
-
-
-!********************************************************************************
-! SUBROUTINE RHOTEST
-! Calcola rho0_best per un dato Tprof, vt_kms, e BCG
-!********************************************************************************
-
-subroutine rhotest(mbcg, Tprof, vt_kms, rho0_best, fb)
-    use constants
-    implicit real*8 (a-h,o-z)
-    parameter(jmax=5000)
-    real*8,  INTENT(IN) :: mbcg, Tprof, vt_kms
-    real*8, INTENT(OUT) :: rho0_best
-
-    
-    real*8 :: r(jmax), rr(jmax), vol(jmax), mnfw(jmax), mdark(jmax), mhern(jmax)
-    real*8 :: T(jmax), gradT(jmax), grv(jmax)
-    real*8 :: rho(jmax), lnd(jmax), mg(jmax)
-    real*8 :: rho0min, rho0max, rho0test, fb_target, fb, tol
-    real*8 :: mtotvir, mgasvir, vturbl
-    integer :: i, j, jvir, maxiter, j_min
-    real*8 :: dist_min
-
-    fb_target = 0.16d0
-    rho0min = 1.d-28
-    rho0max = 1.d-24
-    tol = 1.d-3
-    maxiter = 10000
-
-    vturbl = vt_kms * 1.0d5 !conversione in cm/s
-
-    CALL main(mbcg, Tprof, r, rr, vol, mnfw, mdark, mhern, T, gradT, grv)
-    
-    dist_min = abs(r(1) - rvir)
-    j_min = 1
-    do j = 2, jmax
-    if (abs(r(j) - rvir) < dist_min) then
-        dist_min = abs(r(j) - rvir)
-        j_min = j
-    endif
-    enddo
-    jvir = j_min
-
-    do i = 1, maxiter
-        rho0test = 0.5d0 * (rho0min + rho0max)
-
-        !density profile test
-        grv(1)=0. 
-        lnd(1) = log(rho0test)
-        do j = 2, jvir
-            grv(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2
-            lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(grv(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ gradT(j))
-        enddo
-
-        do j = 1, jvir
-            rho(j) = exp(lnd(j))
-        enddo
-
-        mg(1) = 0.d0
-        do j = 2, jvir
-            mg(j) = mg(j-1) + rho(j-1)*vol(j)
-        enddo
-
-        mtotvir = mnfw(jvir) + mhern(jvir) + mg(jvir)
-        mgasvir = mg(jvir)
-        fb = mgasvir / mtotvir
-
-        if (abs(fb - fb_target) < tol) then
-            print *, 'rho0best = ', rho0test, ' -> f_b =', fb, 'jvir =', jvir
-            exit
-        endif
-
-        ! new range
-        if ((fb - fb_target) > 0.d0) then
-            rho0max = rho0test
-        else
-            rho0min = rho0test
-        endif
-
-        if (i == maxiter) then
-            print *, 'max iterations'
-        endif
-    enddo
-
-    rho0_best = rho0test
-
-return
-end subroutine rhotest
-
-
-!********************************************************************************
-! SUBROUTINE RHO_GAS
-! Calcola densità e massa di gas per un set di parametri
-!********************************************************************************
-subroutine rho_gas(mbcg, Tprof, rho0, vt_kms, rho, mg)
-    use constants
-    parameter(jmax=5000)
-    real*8,  INTENT(IN) :: mbcg, Tprof, rho0, vt_kms
-    real*8, INTENT(OUT) :: rho(jmax), mg(jmax)
-    real*8 :: r(jmax), rr(jmax), vol(jmax), mnfw(jmax), mdark(jmax), mhern(jmax)
-    real*8 :: T(jmax), gradT(jmax), grv(jmax), lnd(jmax)
-    vturbl = vt_kms * 1.0d5 !conversione in cm/s
-
-    CALL main(mbcg, Tprof, r, rr, vol, mnfw, mdark, mhern, T, gradT, grv)
-    !CALL rhotest(mbcg, Tprof, vt_kms, rho0_best, fb)
-   
-    lnd(1)=log(rho0_best)          !! mette il gas in eq. con il potenziale
-    do j=2,jmax
-        grv(1)=0.
-        grv(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2
-        lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(grv(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ gradT(j)) !cosidera il grad di temp mentre calcola la densità del gas
-    end do
-
-    !calcolo rho e mgas per diversi valori di vturbl
-    mg(1)=0.d0
-    do j = 1, jmax
-        rho(j) = exp(lnd(j))
-    end do
-    do j = 2, jmax
-        mg(j) = mg(j-1) + rho(j-1)*vol(j)
-    end do
-
-return
-end subroutine rho_gas
+end
    
 
