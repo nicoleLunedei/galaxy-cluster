@@ -5,4 +5,4 @@ The goal of this project is to understand and investingate the behaviour of a ga
 - The gas is no longer in isothermal equilibrium and it is introduced the thermal gradient 
 - It is considered a small turbolence which becomes a second contribution to the pressure.
   
-In the second part it is studied the metallicity aspect of the cluster. In particolar, under the assumptions that the origin is the explosion of SNIa and the presence of high energy sources, like an AGN insiade the Big Central Galaxy, it will be studied the metallicity profile.
+In the second part it is studied the metallicity aspect of the cluster. In particolar, under the assumptions that the origin is the explosion of SNIa and the presence of high energy sources, like an AGN inside the Big Central Galaxy, it will be studied the metallicity profile.
