@@ -1,5 +1,5 @@
-!*****************************************************************2
-!  Program for project 1- Calcolo 20121. 
+!*****************************************************************
+!  Program for project 1 - prima versione prof
 !  Solves the hydrostatic equilibrium equation in a NFW+BCG potential
 !  Then solves the Fe diffusion eq. (for Perseus)
 !*****************************************************************
