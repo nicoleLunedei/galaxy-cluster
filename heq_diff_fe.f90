@@ -1,15 +1,15 @@
 parameter(jmax=5000)
 implicit real*8 (a-h,o-z)
 !!!Declaration of real arrays of dimension of jmax!!!
-real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
-        rhost(jmax),rho(jmax),mhern(jmax),rhonfw(jmax),mdark(jmax),&
-        grvnfw(jmax),lnd(jmax), mdm_analytic(jmax), T(jmax), lnT(jmax),Mgas(jmax),&
-        ne_reb(jmax), rho_reb(jmax), T_reb(jmax), zfe_obs(jmax),& !!!!Variables for diffusion program
-        zfe_ex(jmax), rho_fe_ex(jmax), rhofe_s(jmax), z_fe(jmax), rho_fe(jmax), gradz_fe(jmax),rho_fe_obs(jmax),&
+real*8, dimension(jmax) :: r,rr,vol,mnfw,&
+        rhost,rho,mhern,rhonfw,mdark,&
+        grvnfw,lnd, mdm_analytic, T, lnT,Mgas,&
+        ne_reb, rho_reb, T_reb, zfe_obs,& !!!!Variables for diffusion program
+        zfe_ex, rho_fe_ex, rhofe_s, z_fe, rho_fe, gradz_fe,rho_fe_obs
    
 
 !!!!Declaration of real numerical values!!!!
-real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,fb,rkpc,zfesol,zfe_ground,rho_jp1,rho_j, dt, D, t
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,fb,rkpc,zfesol,zfe_ground,rho_jp1,rho_j, dt, D, time, v_t, l_t
 !constants
 
 msol = 1.989d33
@@ -134,16 +134,25 @@ enddo
 
  !!Cycle on the Original domain!!
   !!In this cycle we are calculating the gas density and the temperature profile used by Rebusco, from XMM Newton data!!
+  zfesol= 1.8d-3
+  zfe_ground = 0.4 * zfesol
+  v_t = 200d6
+  l_t = 20 * cmkpc
   KeV = 1.16d7
+  D = 0.333333333 * v_t * l_t
  do j = 1, jmax
   rkpc = rr(j)/cmkpc
   ne_reb(j) = ((4.6d-2)/(1 + (rkpc/57)**2)**1.8) + ((4.8d-3)/(1 + (rkpc/200)**2)**0.87)
   rho_reb(j) = 1.937d-27 * ne_reb(j)
-  T_re(j) = 7 * ((1+(rkpc/71)**3)/(2.3+(rkpc/71)**3)) * KeV
-  write(20,1001)rkpc,rho(j), rho_re(j), T_reb(j)
+  T_reb(j) = 7 * ((1+(rkpc/71)**3)/(2.3+(rkpc/71)**3)) * KeV
+  write(20,1001)rkpc,rho(j), rho_reb(j), T_reb(j)
  enddo 
+!!!!!!!!!!!Saving the initial values!!!!!!!!!!!!
+open(10, file='diffusion_fe_t0.dat' )
 
-open(10, file='diffusion_fe.dat' )
+!!!!!!!!!!!Saving the final values!!!!!!!!
+open(40, file= 'diffusion_fe_final.dat')
+
 !We are creating the data file for the diffusion!
 do j = 1, jmax
 !Rescaled radius!
@@ -174,10 +183,11 @@ do j = 1, jmax
    rhofe_s(j)= 0.
    
 enddo
-
+Print*, zfe_obs(1)
+Print*, zfe_obs(100)
 !!!!! Setting the initial condition, in order to guaranteeing continuity during the computing in the cycle with a correct managing the j index!
-
-z_fe(1) = z_fe(2) 
+z_fe(1) = zfe_ex(1)
+z_fe(2) = z_fe(1) 
 z_fe(jmax) = z_fe(jmax-1)
 !!!!!!!! correct values of density at the extremes!!!!
 rho_fe(1) = rho(1)*z_fe(1)/1.4
@@ -185,24 +195,21 @@ rho_fe(jmax) = rho(jmax)*z_fe(jmax)/1.4
 
 !!!!!!!!!Time cycle!!!!!!!!!!!!!!!!!!!!
 T_final = 1.e9 * years
+dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 time = 0.
 do while (time <= T_final)
-dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
-time = time + dt
+
 !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
 
 !! Cycle on the Shifted domain!!
+
+rho_fe(jmax) = rho_fe(jmax-1)
  do  j=2,jmax-1
     gradz_fe(j)=(z_fe(j)-z_fe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
  enddo
  gradz_fe(1)= 0. 
  gradz_fe(jmax)= 0.
 
-!!Setting the interval time value!!
- dt(0) = 10
-!!do j = 1, jmax
- !!dt(j) = (r(j) - r(j-1))**2/(2*D)
- !!t = 0.5 * min(dt(j), t)
 !!enddo
 
   do j=2,jmax-1
@@ -213,20 +220,27 @@ time = time + dt
 
 
 
-   rho_fe(j)=rho_fe(j) &
+   rho_fe(j) = rho_fe(j) &
             + (dt/1.4)*(r(j+1)**2*D*rho_jp1*gradz_fe(j+1) &
             -r(j)**2*D*rho_j*gradz_fe(j))   &
              / (0.33333333*(r(j+1)**3-r(j)**3))
+   !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
          z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
   !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
-   write (10, 1000 ) !!!!!!!!!!!!!Remember to change the format number
+  !!!!!!!!!!!Now we are writing the data of different times in different files!!!!!!
+   if (time == 0.  ) write (10, 1000 ) r(j)/cmkpc, rho_fe(j), rho_fe_obs(j), zfe_ex(j), zfe_obs(j), z_fe(j)
+
+   if (time == T_final) write (40, 1000 ) r(j)/cmkpc, rho_fe(j), rho_fe_obs(j), zfe_ex(j), zfe_obs(j), z_fe(j) 
+   !!!!!!!!!!!Here we are incrementing the time !!!!!!!!!!!!!
+ 
   enddo
 !!!!!!!!!!Radial cyle finished!!!!!!!!
+time = time + dt
 Print*, D
 enddo
 !!!!!!!!!!Time cycle finished!!!!!!!!!
 
-
+1000 format(6 (1pe12.4))
 
 !!!!!!! end abundance cycle!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
