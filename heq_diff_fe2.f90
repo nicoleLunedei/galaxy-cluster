@@ -1,7 +1,3 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! Versione parzialmente corretta in cui però non stampa
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 parameter(jmax=5000)
 implicit real*8 (a-h,o-z)
 !!!Declaration of real arrays of dimension of jmax!!!
@@ -13,7 +9,7 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
    
 
 !!!!Declaration of real numerical values!!!!
-real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,fb,rkpc,zfesol,zfe_ground,rho_jp1,rho_j, dt, D, time, v_t, l_t
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,fb,rkpc,zfesol,zfe_ground,rho_jp1,rho_j, dt, D, t_final, time, n_cycle, v_t, l_t
 !constants
 
 msol = 1.989d33
@@ -133,7 +129,7 @@ Mgas(1)=0.
 do j=2,jmax
    Mgas(j)=Mgas(j-1)+rho(j-1)*vol(j)
 enddo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!NOW THE REAL FE DIFFUSION PART STARTS!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!NOW THE REAL FE DIFFUSION PART STARTS!!!!!!!!!!!!!!!!!!!!!!!!!!!! ************************************************************************************************+
 !Comparison between our profiles, of density and temperature, and the Rebusco profiles!
  open(10,file='comparison.dat')
 
@@ -145,12 +141,13 @@ enddo
   l_t = 20 * cmkpc
   KeV = 1.16d7
   D = 0.333333333 * v_t * l_t
+
  do j = 1, jmax
   rkpc = rr(j)/cmkpc
   ne_reb(j) = ((4.6d-2)/(1 + (rkpc/57)**2)**1.8) + ((4.8d-3)/(1 + (rkpc/200)**2)**0.87)
   rho_reb(j) = 1.937d-27 * ne_reb(j)
   T_reb(j) = 7 * ((1+(rkpc/71)**3)/(2.3+(rkpc/71)**3)) * KeV
-  write(100,1000)rkpc,rho(j), rho_reb(j), T_reb(j)
+  write(10,1000)rkpc,rho(j), rho_reb(j), T_reb(j)
  enddo 
  1000 format(4(1pe12.4))
 
@@ -174,7 +171,7 @@ do j = 1, jmax
     !!!!zfe_ex is reffering to data of the Fe abundance without the background contribution!!  
    zfe_ex(j) = zfe_obs(j) - zfe_ground 
    zfe_ex(j)= max(zfe_ex(j),0.) !calcola il max-->per successivo controllo! Forse lo fa perchè la differenza potrebbe andare in negativo 
-   !quindi sostituisce l'eccesso negativo con lo 0 per scanso di equivoci
+                                !quindi sostituisce l'eccesso negativo con lo 0 per scanso di equivoci
     !!!!zfe_ex will be the initial condition for the diffusion case
  !!Computing the Fe density: t = 0!!
    
@@ -210,13 +207,18 @@ rho_fe(1) = rho_fe_ex(1)
 rho_fe(2) = rho_fe(1)
 rho_fe(jmax-1) = rho_fe_ex(jmax-1)
 rho_fe(jmax) = rho_fe(jmax-1)
-!!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!
-T_final = 1.e9 * years
+
+!!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
+t_final = 1.e9 * years
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
+n_cycle=t_final/dt
 Print*, "Intervallo temporale ", dt
+Print*, "t_final:", t_final
+Print*, "Numero cicli:", int(n_cycle)
 Print*, "Coefficiente di diffusione ", D
 time = 0.
-do while (time <= T_final)
+
+do n=1, int(n_cycle)
  !!(1) = (2), (jmax) = (jmax-1)!!
  !ABUNDANCE!
   z_fe(1) = zfe_ex(1)
@@ -232,7 +234,7 @@ do while (time <= T_final)
  !! Cycle on the Shifted domain!!
  !!!Gradient of Zfe!!!
   do  j=2,jmax-1
-    gradz_fe(j)=(zfe_ex(j)-zfe_ex(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
+    gradz_fe(j)=(z_fe(j)-z_fe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
   enddo
   gradz_fe(1)= 0. 
   gradz_fe(jmax)= 0.
@@ -240,32 +242,34 @@ do while (time <= T_final)
  !!!Medium values of the gas density in each shell!!!
   do j=2,jmax-1
   !! Remember we are computing tha average value of the density which has been defined on the grid
-    rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
-    rho_j = 0.5 * (rho(j-1) + rho(j))  
+      rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
+      rho_j = 0.5 * (rho(j-1) + rho(j))  
   !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
 
-
-
-   rho_fe(j) = rho_fe(j) &
+      rho_fe(j) = rho_fe(j) &
             + (dt/1.4)*(r(j+1)**2*D*rho_jp1*gradz_fe(j+1) &
             -r(j)**2*D*rho_j*gradz_fe(j))   &
              / (0.33333333*(r(j+1)**3-r(j)**3))
    !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
-         z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
+      z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
   !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!Now we are writing the data of different times in different files!!!!!!
-   !if (time == 0.  ) write (10, 1000 ) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j), zfe_ex(j), z_fe(j)
 
-   if (time == T_final) write (40, 1005 ) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j), zfe_ex(j), z_fe(j) 
-   !!!!!!!!!!!Here we are incrementing the time !!!!!!!!!!!!!
- 
-  enddo
+  !!!!!!!!!!!Now we are writing the data of different times in different files!!!!!!
+  
+   !if (time == 0.  ) write (10, 1000 ) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j), zfe_ex(j), z_fe(j)
+   enddo
+
+ if (n .EQ. int(n_cycle)) then  
+   do j=1, jmax
+      write (40, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
+   enddo
+   print*, "n=n_cycle"
+ end if
 !!!!!!!!!!Radial cyle finished!!!!!!!!
 time = time + dt
-!Print*, D
 enddo
 !!!!!!!!!!Time cycle finished!!!!!!!!!
-
+close(40)
 1005 format(6 (1pe12.4))
 
 !!!!!!! end abundance cycle!!!!!!!!!!!!!!!!!!
