@@ -1,3 +1,8 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! Nuova versione parzialmente corretta: ciclo su n invece che su time, stampa 
+!! su file ma viene strano
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 parameter(jmax=5000)
 implicit real*8 (a-h,o-z)
 !!!Declaration of real arrays of dimension of jmax!!!
