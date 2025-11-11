@@ -202,16 +202,11 @@ Print*, zfe_obs(100)
 !!!!! Setting the boundary condition, in order to guaranteeing continuity during the computing in the cycle with a correct managing the j index!
 !!(1) = (2), (jmax) = (jmax-1)!!
 
-!ABUNDANCE!
-z_fe(1) = zfe_ex(1)
-z_fe(2) = z_fe(1) 
-z_fe(jmax) = z_fe(jmax-1)
+do j=1, jmax
+rho_fe(j)=rho_fe_ex(j)
+z_fe(j)=zfe_ex(j)
+end do
 
-!FE DENSITY!
-rho_fe(1) = rho_fe_ex(1)
-rho_fe(2) = rho_fe(1)
-rho_fe(jmax-1) = rho_fe_ex(jmax-1)
-rho_fe(jmax) = rho_fe(jmax-1)
 
 !!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
 t_final = 1.e9 * years
@@ -224,17 +219,8 @@ Print*, "Coefficiente di diffusione ", D
 time = 0.
 
 do n=1, int(n_cycle)
- !!(1) = (2), (jmax) = (jmax-1)!!
- !ABUNDANCE!
-  z_fe(1) = zfe_ex(1)
-  z_fe(2) = z_fe(1) 
-  z_fe(jmax) = z_fe(jmax-1)
-
- !FE DENSITY!
-  rho_fe(1) = rho_fe_ex(1)
-  rho_fe(2) = rho_fe(1)
-  rho_fe(jmax-1) = rho_fe_ex(jmax-1)
-  rho_fe(jmax) = rho_fe(jmax-1)
+ 
+ 
 !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
  !! Cycle on the Shifted domain!!
  !!!Gradient of Zfe!!!
@@ -271,6 +257,11 @@ do n=1, int(n_cycle)
    print*, "n=n_cycle"
  end if
 !!!!!!!!!!Radial cyle finished!!!!!!!!
+!!(1) = (2), (jmax) = (jmax-1)!!
+z_fe(1)=z_fe(2)
+z_fe(jmax)=z_fe(jmax-1)
+rho_fe(1)=rho_fe(2)
+rho_fe(jmax)=rho_fe(jmax-1)
 time = time + dt
 enddo
 !!!!!!!!!!Time cycle finished!!!!!!!!!
