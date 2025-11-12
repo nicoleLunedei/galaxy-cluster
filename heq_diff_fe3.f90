@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! Nuova versione parzialmente corretta: ciclo su n invece che su time, stampa 
-!! su file ma viene strano
+!! Nuova versione corretta: ciclo su n invece che su time, stampa 
+!! su file ed evoluzione funzionante
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 parameter(jmax=5000)
@@ -145,7 +145,8 @@ enddo
   v_t = 200d6
   l_t = 20 * cmkpc
   KeV = 1.16d7
-  D = 0.333333333 * v_t * l_t
+  !D = 0.333333333 * v_t * l_t   !Our value
+  D=0.11*260d5*15*cmkpc          !Rebusco value
 
  do j = 1, jmax
   rkpc = rr(j)/cmkpc
@@ -162,32 +163,27 @@ open(20, file='initial_zfe.dat' )
 !!!!!!!!!!!Saving the final values!!!!!!!!
 open(40, file= 'final_zfe.dat')
 
+***************!Creating the initial condition data file!****************
 do j = 1, jmax
  !Rescaled radius!
     x=rr(j)/(80.*cmkpc)
- !We are creating the initial condition data file!
-
- !DIFFUSION CASE!
+    
+ !DIFFUSION CASE!**********
  !!Computing the Fe abundance profile in Perseus Cluster ! 
-  !!Perseus: here I would remove the factor 1.15/1.15, because for definition is equal to 1!!
+ !!Perseus profile: here I would remove the factor 1.15/1.15, because for definition is equal to 1!!
    zfe_obs(j) = zfesol * 0.3 * 1.4 * 1.15 * (2.2 + x**3)/(1 + x**3)/1.15  
 
-   !!!Cleaning operation from the abundance_fe di background!
-    !!!!zfe_ex is reffering to data of the Fe abundance without the background contribution!!  
+ !!!Cleaning operation from the abundance_fe di background!
+   !!!!zfe_ex is reffering to data of the Fe abundance without the background contribution!!  
    zfe_ex(j) = zfe_obs(j) - zfe_ground 
    zfe_ex(j)= max(zfe_ex(j),0.) !calcola il max-->per successivo controllo! Forse lo fa perchè la differenza potrebbe andare in negativo 
                                 !quindi sostituisce l'eccesso negativo con lo 0 per scanso di equivoci
-    !!!!zfe_ex will be the initial condition for the diffusion case
+   !!!!zfe_ex will be the initial condition for the diffusion case
  !!Computing the Fe density: t = 0!!
-   
-  !!!From raw data!!!
-   rho_fe_obs(j) = rho(j) * zfe_obs(j)/1.4
+   rho_fe_obs(j) = rho(j) * zfe_obs(j)/1.4    !!!From raw data!!!
+   rho_fe_ex(j) = rho(j) * zfe_ex(j)/1.4      !!!From cleaned data!!! 
 
-  !!!From cleaned data!!!
-   rho_fe_ex(j) = rho(j) * zfe_ex(j)/1.4
-
- !SOURCE CASE: responsible for the Fe-peak!
-
+ !SOURCE CASE: responsible for the Fe-peak!******************
    !!!Initial condition: zfe(r,0) = 0 vs zfe(r,0) = zfe_ground!!!
    zfe_s(j) = 0.  
    rhofe_s(j)= 0.
@@ -195,21 +191,17 @@ do j = 1, jmax
 enddo
 1004 format(4(1pe12.4))
 
-Print*, zfe_obs(1)
-Print*, zfe_obs(100)
+!Print*, zfe_obs(1)
+!Print*, zfe_obs(100)
 
-
-!!!!! Setting the boundary condition, in order to guaranteeing continuity during the computing in the cycle with a correct managing the j index!
-!!(1) = (2), (jmax) = (jmax-1)!!
-
+!!Initializing rho_fe and z_fe: we assign their initial value at t=0 equal to the (Rebusco- background) profiles
 do j=1, jmax
 rho_fe(j)=rho_fe_ex(j)
 z_fe(j)=zfe_ex(j)
 end do
 
-
-!!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
-t_final = 1.e9 * years
+************************!!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!******************************************
+t_final = 1.e9 * years                  !!!!Change to see how it evolves in different timelines
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 n_cycle=t_final/dt
 Print*, "Intervallo temporale ", dt
@@ -219,11 +211,8 @@ Print*, "Coefficiente di diffusione ", D
 time = 0.
 
 do n=1, int(n_cycle)
- 
- 
 !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
  !! Cycle on the Shifted domain!!
- !!!Gradient of Zfe!!!
   do  j=2,jmax-1
     gradz_fe(j)=(z_fe(j)-z_fe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
   enddo
@@ -236,48 +225,38 @@ do n=1, int(n_cycle)
       rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
       rho_j = 0.5 * (rho(j-1) + rho(j))  
   !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
-
       rho_fe(j) = rho_fe(j) &
             + (dt/1.4)*(r(j+1)**2*D*rho_jp1*gradz_fe(j+1) &
             -r(j)**2*D*rho_j*gradz_fe(j))   &
-             / (0.33333333*(r(j+1)**3-r(j)**3))
+             / (0.33333333*(r(j+1)**3-r(j)**3))            
    !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
       z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
   !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
 
   !!!!!!!!!!!Now we are writing the data of different times in different files!!!!!!
-  
-   !if (time == 0.  ) write (10, 1000 ) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j), zfe_ex(j), z_fe(j)
-   enddo
-
  if (n .EQ. int(n_cycle)) then  
    do j=1, jmax
       write (40, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
-   enddo
+   end do
    print*, "n=n_cycle"
  end if
 !!!!!!!!!!Radial cyle finished!!!!!!!!
+
+!!!!! Setting the boundary condition, in order to guaranteeing continuity during the computing in the cycle with a correct managing the j index!
 !!(1) = (2), (jmax) = (jmax-1)!!
 z_fe(1)=z_fe(2)
 z_fe(jmax)=z_fe(jmax-1)
 rho_fe(1)=rho_fe(2)
 rho_fe(jmax)=rho_fe(jmax-1)
+
+!!Evolving time
 time = time + dt
-enddo
+end do
 !!!!!!!!!!Time cycle finished!!!!!!!!!
 close(40)
 1005 format(6 (1pe12.4))
 
 !!!!!!! end abundance cycle!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!This is the moment when I create a variable 'command', which I will use to call the python plot command
-!! Declaretion for the string variable for the command
-!!character(len=100) :: command
-
-!!Assigning the the command in order to execute Python script!!
-!!command = "python3 plot_grav.py"
-
-!! Execute the system command !!
-!!call system(command)
-
+!!THE END :)
 end 
