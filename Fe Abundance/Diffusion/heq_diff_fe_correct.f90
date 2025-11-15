@@ -154,10 +154,11 @@ end do
  1000 format(4(1pe12.4))
 
 !!!!!!!!!!!Saving the initial values!!!!!!!!!!!!
-open(20, file='initial_zfe.dat' )
+open(20, file='initial_zfe_diff.dat' )
 
 !!!!!!!!!!!Saving the final values!!!!!!!!
-open(40, file= 'final_zfe.dat')
+open(40, file= 'final_zfe_diff.dat')
+open(50, file= 'Mass_fe_diff.dat')
 
 ***************!Creating the initial condition data file!****************
 do j = 1, jmax
@@ -189,14 +190,13 @@ enddo
 
 !Print*, zfe_obs(1)
 !Print*, zfe_obs(100)
-
+end do
 !!!!!!!!!!!!!!!!!!Computing the initial mass of the iron profile""""""""""""""""""
 M0_fe(1) = 0.
-   do j=2,jmax
-     M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
-   enddo
-        Print*, "Initial Fe Mass (< 100kpc)", M0_fe(166)/ msol, "masse solari"
-
+do j=2,jmax
+  M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
+end do
+Print*, "Initial Fe Mass (< 100kpc)", M0_fe(166)/ msol, "masse solari"
 
 !!Initializing rho_fe and z_fe: we assign their initial value at t=0 equal to the (Rebusco- background) profiles
 do j=1, jmax
@@ -267,6 +267,7 @@ end do
 !!!!!!!!!!Time cycle finished!!!!!!!!!
 close(40)
 1005 format(6 (1pe12.4))
+1006 format(3 (1pe12.4))
 
 !!!!!!! end abundance cycle!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
