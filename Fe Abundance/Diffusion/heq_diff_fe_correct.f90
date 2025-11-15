@@ -189,6 +189,14 @@ enddo
 !Print*, zfe_obs(1)
 !Print*, zfe_obs(100)
 
+!!!!!!!!!!!!!!!!!!Computing the initial mass of the iron profile""""""""""""""""""
+M0_fe(1) = 0.
+   do j=2,jmax
+     M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
+   enddo
+        Print*, "Initial Fe Mass (< 100kpc)", M0_fe(166)/ msol, "masse solari"
+
+
 !!Initializing rho_fe and z_fe: we assign their initial value at t=0 equal to the (Rebusco- background) profiles
 do j=1, jmax
 rho_fe(j)=rho_fe_ex(j)
@@ -233,6 +241,14 @@ do n=1, int(n_cycle)
    do j=1, jmax
       write (40, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
    end do
+   print*, "n=n_cycle"
+     !!!!!!!!!!!!!!!!!!!!!!!computing the Fe mass!!!!!!!!!!!!!!!!!!!
+  M_fe(1) = 0.
+   do j=2,jmax
+     M_fe(j)=M_fe(j-1)+rho_fe(j-1)*vol(j)
+     write(50,1006) r(j)/cmkpc, M0_fe(j)/msol, M_fe(j)/msol 
+   enddo
+    Print*, "Final Fe Mass (< 100kpc)", M_fe(166)/ msol, "masse solari"
    print*, "n=n_cycle"
  end if
 !!!!!!!!!!Radial cyle finished!!!!!!!!
