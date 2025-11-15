@@ -10,7 +10,8 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
         rhost,rho,mhern,rhonfw,mdark,&
         grvnfw,lnd, mdm_analytic, T, lnT,Mgas,&
         ne_reb, rho_reb, T_reb, zfe_obs,& !!!!Variables for diffusion program
-        zfe_ex, zfe_s, rho_fe_ex, rhofe_s, z_fe, rho_fe, gradz_fe,rho_fe_obs
+        zfe_ex, zfe_s, rho_fe_ex, rhofe_s, z_fe, rho_fe, gradz_fe,rho_fe_obs&
+        M0_fe, M_fe
 
 
 !!!!Declaration of real numerical values!!!!
