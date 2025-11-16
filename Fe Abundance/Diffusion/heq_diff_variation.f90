@@ -161,11 +161,11 @@ enddo
  1000 format(4(1pe12.4))
 
 !!!!!!!!!!!Saving the initial values!!!!!!!!!!!!
-open(20, file='initial_zfe_diff.dat' )
+open(20, file='initial_zfe_diff_var.dat' )
 
 !!!!!!!!!!!Saving the final values!!!!!!!!
-open(40, file= 'final_zfe_diff.dat')
-open(50, file= 'Mass_fe_diff.dat')
+open(40, file= 'final_zfe_diff_var.dat')
+open(50, file= 'Mass_fe_diff_var.dat')
 
 do j = 1, jmax
  !Rescaled radius!
