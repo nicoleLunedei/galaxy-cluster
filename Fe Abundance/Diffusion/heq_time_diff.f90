@@ -76,7 +76,6 @@ do j=1,jmax
    rhonfw(j)=rho0nfw/(x*(1.+x)**2)
 enddo
 
-open(20,file='masse_diff.dat')
 mnfw(1)=0.		!!initial dark matter mass
 mdark(1)=0.
 mhern(1)=0.
@@ -90,35 +89,21 @@ do j=2,jmax 		!!NB: starts at j=2 not j=1
    mdark(j)=mvir*(log(1.+x)-x/(1.+x))/fc				                        !!DM analytic NFW formula
    mhern(j)=mbgc*r(j)**2/(r(j)+ahern)**2				                        !!analytic stellar mass
 enddo
-!!Cycle on the Original domain!!
-do j=1, jmax
-   write(20,1001)r(j)/cmkpc,mnfw(j)/msol,mdark(j)/msol,mhern(j)/msol, mdm_analytic(j)/msol
-enddo
-1001 format(5(1pe12.4))
-close(20)
 
 !! Temperature profile from a given analytical function !!
-open(20, file='temperature_diff.dat')
 do j=1, jmax
     y=rr(j)/r500
     T(j)=ticm*1.35d0*((y/0.045d0)**1.9+0.45d0)/((y/0.045d0)**1.9+1)*(1+(y/0.6d0)**2)**(-0.45)
     lnT(j)=log(T(j))
-    write(20,1003)rr(j)/cmkpc, T(j), ticm
 enddo
-1003 format(3(1pe12.4))
-close(20)
 
 !!gravitational energy
 
-open(20,file='grv_diff.dat')
 grvnfw(1)=0.          !! ok per alone NFW, isotermo o beta-model
 !!!!Cycle on the Original domain!!
 do j=2,jmax
    grvnfw(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2		!!already takes into account the mass of the central galaxy BCG
-   write(20,1002)r(j)/cmkpc,grvnfw(j)/msol
 enddo
-1002 format(2(1pe12.4))
-close(20)
 
 !calculate the gas density
 lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
@@ -139,7 +124,6 @@ do j=2,jmax
 enddo
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!NOW THE REAL FE DIFFUSION PART STARTS!!!!!!!!!!!!!!!!!!!!!!!!!!!! ************************************************************************************************+
 !Comparison between our profiles, of density and temperature, and the Rebusco profiles!
- open(10,file='comparison.dat')
 
  !!Cycle on the Original domain!!
   !!In this cycle we are calculating the gas density and the temperature profile used by Rebusco, from XMM Newton data!!
@@ -156,16 +140,7 @@ enddo
   ne_reb(j) = ((4.6d-2)/(1 + (rkpc/57)**2)**1.8) + ((4.8d-3)/(1 + (rkpc/200)**2)**0.87)
   rho_reb(j) = 1.937d-27 * ne_reb(j)
   T_reb(j) = 7 * ((1+(rkpc/71)**3)/(2.3+(rkpc/71)**3)) * KeV
-  write(10,1000)rkpc,rho(j), rho_reb(j), T_reb(j)
  enddo 
- 1000 format(4(1pe12.4))
-
-!!!!!!!!!!!Saving the initial values!!!!!!!!!!!!
-open(20, file='initial_zfe_diff.dat' )
-
-!!!!!!!!!!!Saving the final values!!!!!!!!
-open(40, file= 'final_zfe_diff.dat')
-open(50, file= 'Mass_fe_diff.dat')
 
 do j = 1, jmax
  !Rescaled radius!
@@ -197,7 +172,6 @@ do j=2,jmax
      M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
 end do
 Print*, 'initial Fe Mass (50 kpc):', M0_fe(83)/msol
-Print*, "Initial Fe Mass (< 100kpc)", M0_fe(166)/ msol, "masse solari"
 
 !!!!! Setting the initial condition
 do j=1, jmax
@@ -209,10 +183,7 @@ enddo
 t_final = 7.e9 * years
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 n_cycle=t_final/dt
-Print*, "Intervallo temporale ", dt
-Print*, "t_final:", t_final
-Print*, "Numero cicli:", int(n_cycle)
-Print*, "Coefficiente di diffusione ", D
+Print*, "t_final:", t_final/years
 time = 0.
 
 M0_fe_half= M0_fe(83)*0.5
@@ -250,19 +221,6 @@ do n=1, int(n_cycle)
 
  end do
 !!!!!!!!!!Radial cyle finished!!!!!!!!
-
-if (n .EQ. int(n_cycle)) then  
-     do j=1, jmax
-       write (40, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
-     end do
-     print*, "n=n_cycle"
-     !!!!!!!Saving the final mass!!!!!!!!!!!!!!!!!!!
-     do j=2,jmax
-       write(50,1006) r(j)/cmkpc, M0_fe(j)/msol, M_fe(j)/msol 
-     end do
-   Print*, "Final Fe Mass (< 100kpc)", M_fe(166)/ msol, "masse solari"
-end if
-
 !!!!!!!!!!Searching for the diffusion time: Fe peak set at 50 kpc
 if (.not. found) then
   if (M_fe(83) <= M0_fe_half) then
@@ -283,9 +241,6 @@ rho_fe(jmax) = rho_fe(jmax-1)
 time = time + dt
 end do
 !!!!!!!!!!Time cycle finished!!!!!!!!!
-close(40)
-1005 format(6 (1pe12.4))
-1006 format(3 (1pe12.4))
 
 !!!!!!! end abundance cycle!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
