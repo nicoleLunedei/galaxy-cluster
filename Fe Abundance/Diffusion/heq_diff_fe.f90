@@ -214,7 +214,7 @@ end do
 !!to check if at the end time=t_final (note time is always <t_final that's way later we aren't imposing the equality)
 print*, 'Final time', time/years    
 !!To check MASS CONSERVATION
-Print*, "Initial Fe Mass (< 100kpc)=", M0_fe(166)/ msol, "masse solari"
+Print*, "Initial Fe Mass (< 100kpc)=", M0_fe(166)/ msol, "masse solari"     !!element 166 corresponds to radius 100 kpc
 
 !Writing the final values rho_fe, z_fe, M_fe(<100 kpc)
 !!Case diffusion after 1Gyr
