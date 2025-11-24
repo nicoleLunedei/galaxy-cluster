@@ -4,7 +4,7 @@ real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
         rhost(jmax),rho(jmax),mhern(jmax),rhonfw(jmax),mdark(jmax),&
         grvnfw(jmax),lnd(jmax), mdm_analytic(jmax), T(jmax), lnT(jmax),&
         Mgas(jmax)
-real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, fb
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, fb,T_j
 integer, parameter :: nvt = 4
 real*8, dimension(nvt) :: vt_values
 real*8, dimension(jmax, nvt) :: Mgas_vt, rho_vt
@@ -97,7 +97,7 @@ enddo
 1003 format(3(1pe12.4))
 close(20)
 
-!!gravitational energy
+!!gravitational force
 
 open(20,file='grv_gradT_turbl.dat')
 grvnfw(1)=0.          !! ok per alone NFW, isotermo o beta-model
@@ -117,7 +117,8 @@ do ivt = 1, nvt !testare i valori di vt
   lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
   do j=2,jmax
      gg=grvnfw(j)
-     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
+     T_j = 0.5 * (T(j) + T(j-1))
+     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
   end do
 
 !calcolo rho e mgas per diversi valori di vturbl
