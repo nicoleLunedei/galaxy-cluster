@@ -10,7 +10,7 @@ real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
         rhost(jmax),rho(jmax),mhern(jmax),rhonfw(jmax),mdark(jmax),&
         grvnfw(jmax),lnd(jmax), mdm_analytic(jmax), T(jmax), lnT(jmax),&
         Mgas(jmax)
-real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, fb
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, fb, T_j
 
 !constants
 
@@ -111,7 +111,8 @@ close(20)
 lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+   T_j = 0.5 * (T(j) + T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 enddo
 
 do j=1,jmax
