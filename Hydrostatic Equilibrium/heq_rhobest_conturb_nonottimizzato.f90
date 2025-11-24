@@ -9,7 +9,7 @@ real*8, dimension(jmax) :: r(jmax),rr(jmax),vol(jmax),mnfw(jmax),&
         rhost(jmax), rho(jmax), rhonobcg(jmax), mhern(jmax), rhonfw(jmax), mdark(jmax),&
         grvnfw(jmax), grvnobcg(jmax), lnd(jmax), mg(jmax), mgnobcg(jmax), mgthermal(jmax), rhothermal(jmax),&
         T(jmax), lnT(jmax)
-real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern
+real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern, T_j
 real*8, dimension(jmax, 4) :: mgturb, rhoturb, lndt
 real(8), dimension(4) :: rho0turb, vturb
 
@@ -224,7 +224,8 @@ do i = 1, maxiter
    !density profile test
    lnd(1) = log(rho0test)
    do j = 2, jvir
-      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+     T_j = 0.5 * (T(j) + T(j-1))
+      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
    enddo
 
    do j = 1, jvir
@@ -344,7 +345,8 @@ enddo
 lnd(1)=log(rho0thermal)          !! mette il gas in eq. con il potenziale
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+   T_j = 0.5 * (T(j) + T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 enddo
 
 do j=1,jmax
@@ -360,8 +362,9 @@ enddo
  
  do j = 2, jmax
       gg = grvnfw(j)
+      T_j = 0.5 * (T(j) + T(j-1))
       lndt(j, iturb) = lndt(j-1, iturb) - (1.0d0 + (vturb(iturb)**2 / ((1.5d4**2) * T(j))))**(-1) * & !espressione di anna con tutti i contributi
-      (gg * (mu * mp) * (rr(j) - rr(j-1)) / (boltz * T(j)) + lnT(j) - lnT(j-1))
+      (gg * (mu * mp) * (rr(j) - rr(j-1)) / (boltz * T_j)) + lnT(j) - lnT(j-1))
    end do
 
    do j = 1, jmax
