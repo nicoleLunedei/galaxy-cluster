@@ -12,7 +12,7 @@ real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern
 
 
 real*8 :: fb_target, fb, rho0min, rho0max, rho0test, mtotvir, mgasvir
-real*8 :: tol
+real*8 :: tol,T_j
 integer :: i, maxiter, jvir
 real*8 :: dist_min
 integer :: j_min
