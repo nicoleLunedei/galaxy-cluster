@@ -1,6 +1,6 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! Codice (non funzionante) per il caso diffusione + sorgente
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!This program computes the Fe abundance profile considering diffusion with Fe sources!! 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 parameter(jmax=5000)
 implicit real*8 (a-h,o-z)
@@ -15,8 +15,8 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
 
 !!!!Declaration of real numerical values!!!!
 real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,&
-          zfesol,zfe_ground,rho_jp1,rho_j, dt, D, t_now, time, n_cycle, v_t, l_t,&
-          alpha_hern, alpha_Ia, zfe_Ia, coeff
+          zfesol,zfe_ground,T_j,rho_jp1,rho_j, dt, D, t_now, time, n_cycle, v_t, l_t,&
+          alpha_hern, alpha_Ia, zfe_Ia, coeff, pi
 !constants
 
 msol = 1.989d33
@@ -28,18 +28,19 @@ mp=1.67265e-24
 years=3.156d7
 KeV = 1.16d7
 t_now=13.7d9*years
+pi = 3.14159265359
 
 ! parametri del problema
 rho0nfw=7.35d-26
 rs=435.7*cmkpc
-rho0=8d-26 		      !!central density/initial condition
+rho0=2.03d-25 		      !!central density/initial condition
 ticm=8.9d7		      !!temperature of the ICM
 rvir=2797.*cmkpc
 r500=rvir/2.0d0
 fc=1.138799
 mvir=1.3e15*msol
 mbgc=1.d12*msol
-ahern=10.*cmkpc/(1.+2.**(0.5))
+ahern=12.*cmkpc/(1.+2.**(0.5))
 zfesol= 1.8d-3
 zfe_ground = 0.4 * zfesol
 zfe_Ia=0.744/1.4
@@ -107,7 +108,9 @@ lnd(1)=log(rho0)
 !!Cycle on the Shifted domain for the density and the original domain for the temperature!!
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+   !!!!!!!!!!!!!Computing the average value of T!!!!!!!!!!!!!
+   T_j = 0.5*(T(j)+T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 end do
 do j=1,jmax
    rho(j)=exp(lnd(j))  
@@ -193,7 +196,7 @@ do n=1, int(n_cycle)
   !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
 !!!!!!!!!!!!!!!!!!!!!Source function: Stellar winds & SNIa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      !! Stellar density hern
-      rho_hern(j) = (mbgc * ahern)/ (2 * 3.14 * r(j) * ((r(j) + ahern)**3)) 
+      rho_hern(j) = mbgc/(2.*pi)*(ahern/rr(j))/(ahern+rr(j))**3
       if (coeff==1) then
          s_fe(j)=rho_hern(j)*(alpha_hern*zfesol/1.4 + alpha_Ia*zfe_Ia)    !!variable coefficients
       end if
