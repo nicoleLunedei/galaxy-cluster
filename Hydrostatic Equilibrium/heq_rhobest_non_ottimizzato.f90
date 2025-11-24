@@ -12,7 +12,7 @@ real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern
 
 
 real*8 :: fb_target, fb, rho0min, rho0max, rho0test, mtotvir, mgasvir
-real*8 :: tol
+real*8 :: tol,T_j
 integer :: i, maxiter, jvir
 real*8 :: dist_min
 integer :: j_min
@@ -231,7 +231,8 @@ do i = 1, maxiter
    !density profile test
    lnd(1) = log(rho0test)
    do j = 2, jmax
-      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+      T_j = 0.5 * (T(j) + T(j-1))
+      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
    enddo
 
    do j = 1, jmax
@@ -297,7 +298,8 @@ enddo
 lnd(1)=log(rho0thermal)          !! mette il gas in eq. con il potenziale
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+    T_j = 0.5 * (T(j) + T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 enddo
 
 do j=1,jmax
