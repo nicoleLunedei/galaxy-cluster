@@ -230,7 +230,8 @@ do i = 1, maxiter
    !density profile test
    lnd(1) = log(rho0test)
    do j = 2, jmax
-      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+      T_j = 0.5 * (T(j) + T(j-1))
+      lnd(j)=lnd(j-1)-(grvnfw(j)*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
    enddo
 
    do j = 1, jmax
@@ -281,7 +282,8 @@ do i = 1, maxiter
       lnd(1)=log(rho0test)          !! mette il gas in eq. con il potenziale
       do j=2,jmax
          gg=grvnfw(j)
-         lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
+          T_j = 0.5 * (T(j) + T(j-1))
+         lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
       end do
 
 !calcolo rho e mgas per diversi valori di vturbl
@@ -355,7 +357,8 @@ enddo
 lnd(1)=log(rho0thermal)          !! mette il gas in eq. con il potenziale
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+    T_j = 0.5 * (T(j) + T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 enddo
 
 do j=1,jmax
@@ -392,7 +395,8 @@ do ivt = 1, nvt !testare i valori di vt
   lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
   do j=2,jmax
      gg=grvnfw(j)
-     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
+      T_j = 0.5 * (T(j) + T(j-1))
+     lnd(j)=lnd(j-1)-(1.0d0+(vturbl**2/((1.5d4**2)*T(j))))**(-1)*(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1)) !cosidera il grad di temp mentre calcola la densità del gas
   end do
 
 !calcolo rho e mgas per diversi valori di vturbl
