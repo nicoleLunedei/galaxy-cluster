@@ -15,7 +15,7 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
 
 !!!!Declaration of real numerical values!!!!
 real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,fb,rkpc,&
-          zfesol,zfe_ground,rho_jp1,rho_j, D, v_t, l_t,&
+          zfesol,zfe_ground,T_j,rho_jp1,rho_j, D, v_t, l_t,&
           t_final, time, n_cycle, dt, pippo, M0_fe_half
 logical:: found
 !constants
@@ -59,7 +59,7 @@ enddo
 
 rho0nfw=7.35d-26
 rs=435.7*cmkpc
-rho0=8d-26 		      !!central density/initial condition to be modified
+rho0=2.03d-25		      !!central density/initial condition to be modified
 ticm=8.9d7		      !!temperature of the ICM
 
 rvir=2797.*cmkpc
@@ -67,7 +67,7 @@ r500=rvir/2.0d0
 fc=1.138799
 mvir=1.3e15*msol
 mbgc=1.d12*msol
-ahern=10.*cmkpc/(1.+2.**(0.5))
+ahern=12.*cmkpc/(1.+2.**(0.5))
 
 !!DM density profile
 !!Cycle on the Shifted domain!!
@@ -110,7 +110,8 @@ lnd(1)=log(rho0)          !! mette il gas in eq. con il potenziale
 !!Cycle on the Shifted domain for the density and the original domain for the temperature!!
 do j=2,jmax
    gg=grvnfw(j)
-   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T(j))+ lnT(j)-lnT(j-1))
+   T_j = 0.5 * (T(j) + T(j-1))
+   lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
 enddo
 !!Just passing from lnd(j) to rho(j)!!
 do j=1,jmax
