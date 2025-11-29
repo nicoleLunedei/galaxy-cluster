@@ -162,9 +162,9 @@ do j=1, jmax
 end do
 
 !!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
-print *, 'Initial time: [yr]'       !!Initial time based on how long we want the time integration range, it's equal to t_now-(time interval)
-read(*, *) time                      !!ex. to see the evolution in 5 Gyr, initial time= 13.7-5=8.7 Gyr
-time = time* years
+print *, 'Initial time: [Gyr]'       !!Initial time based on how long we want the time integration range, it's equal to t_now-(time interval)
+read(*, *) time                      !!ex. to see the evolution in 5 Gyr, initial time = 13.7 - 5 = 8.7 so write 8.7
+time = time* years * 1.0d9
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 n_cycle=(t_now-time)/dt
 Print*, "Initial time:", time/years
@@ -179,23 +179,25 @@ do n=1, int(n_cycle)
    !!!!!!!!!Variable source coefficients
    alpha_hern=4.7d-20 * (time/t_now)**(-1.26)    !!NB: time non inizia più da 0 ora inizia dal valore in input (8.7d9, 10.7d9...), t_final=t_now
    alpha_Ia=8.87d-22 *(time/t_now)**(-1.1)
-!!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
- !! Cycle on the Shifted domain!!
- !!!Gradient of Zfe!!!
+   
+  !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
+  !! Cycle on the Shifted domain!!
+  !!!Gradient of Zfe!!!
   do  j=2,jmax-1
     gradz_fe(j)=(z_fe(j)-z_fe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
   end do
   gradz_fe(1)= 0. 
   gradz_fe(jmax)= 0.
 
- !!!Medium values of the gas density in each shell!!!
+  !!!Medium values of the gas density in each shell!!!
   do j=2,jmax-1
-  !! Remember we are computing tha average value of the density which has been defined on the grid
+      !! Remember we are computing tha average value of the density which has been defined on the grid
       rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
       rho_j = 0.5 * (rho(j-1) + rho(j))  
-  !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
-!!!!!!!!!!!!!!!!!!!!!Source function: Stellar winds & SNIa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     !! Stellar density hern
+      !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
+  
+      !!!!!!!!!!!!!!!!!!!!!Source function: Stellar winds & SNIa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !! Stellar density hern
       rho_hern(j) = mbgc/(2.*pi)*(ahern/rr(j))/(ahern+rr(j))**3
       if (coeff==1) then
          s_fe(j)=rho_hern(j)*(alpha_hern*zfesol/1.4 + alpha_Ia*zfe_Ia)    !!variable coefficients
@@ -203,39 +205,40 @@ do n=1, int(n_cycle)
       if(coeff==0) then
          s_fe(j) = rho_hern(j) * (6d-23 + 4.7d-22)    !!constant coefficients
       end if
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !!!Computing Fe density for diffusion + source
       rho_fe(j) = rho_fe(j) + dt*s_fe(j)&
             + (dt/1.4)*(r(j+1)**2*D*rho_jp1*gradz_fe(j+1) &
             -r(j)**2*D*rho_j*gradz_fe(j))   &
              / (0.33333333*(r(j+1)**3-r(j)**3))
-   !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
       z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe !! !! fomula a pag 28 di project1 pdf
-  !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
+!!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
    end do
    !!!!!!!!!!!!!!!!!!!!!!!computing the Fe mass!!!!!!!!!!!!!!!!!!!
-  M_fe(1) = rho_fe(1)*vol(1)
+   M_fe(1) = rho_fe(1)*vol(1)
    do j=2,jmax
-     M_fe(j)=M_fe(j-1)+rho_fe(j-1)*vol(j)
-     !write(50,1006) r(j)/cmkpc, M0_fe(j)/msol, M_fe(j)/msol 
-   enddo
+      M_fe(j)=M_fe(j-1)+rho_fe(j-1)*vol(j)
+      !write(50,1006) r(j)/cmkpc, M0_fe(j)/msol, M_fe(j)/msol 
+   end do
 !!!!!!!!!!Radial cyle finished!!!!!!!!
-!!(1) = (2), (jmax) = (jmax-1)!!
+
+!!Boundary conditions: (1) = (2), (jmax) = (jmax-1)!!
 z_fe(1)=z_fe(2)
 z_fe(jmax)=z_fe(jmax-1)
-
 rho_fe(1)=rho_fe(2)
 rho_fe(jmax)=rho_fe(jmax-1)
 
+!!Updating the time
 time = time + dt
 enddo
 !!!!!!!!!!Time cycle finished!!!!!!!!!
+
 !MASS CONSERVATION
 Print*, "Initial Fe Mass (< 100kpc)", M0_fe(166)/ msol, "masse solari"
 Print*, "Final Fe Mass (< 100kpc)", M_fe(166)/ msol, "masse solari"
-!if (n .EQ. 6095) then
-   !print*, 'time(n=6095)=', ((time/years)-8.7d9)
-!end if
+
 !!!!!!!!!!!Now we are writing the data of different times in different files!!!!!!
 do j=1, jmax
    if (coeff==1) then
@@ -249,7 +252,7 @@ close(20)
 close(30)
 close(40)
 1005 format(6(1pe12.4))
-1006 format(3(1pe12.4))
+!1006 format(3(1pe12.4))
 
 end 
 
