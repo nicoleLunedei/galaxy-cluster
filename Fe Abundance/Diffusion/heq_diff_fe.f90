@@ -1,6 +1,6 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!Codice per il caso solo diffusione
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!Codice per il caso solo diffusione con la possibilità del calcolo a diversi tempi 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 parameter(jmax=5000)
 implicit real*8 (a-h,o-z)
@@ -10,7 +10,6 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
         grvnfw,lnd, mdm_analytic, T, lnT,Mgas,&
         ne_reb, rho_reb, T_reb, zfe_obs,& !!!!Variables for diffusion program
         zfe_ex, rho_fe_ex, z_fe, rho_fe, gradz_fe, rho_fe_obs, M0_fe, M_fe
-   
 
 !!!!Declaration of real numerical values!!!!
 real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,&
@@ -27,7 +26,7 @@ mp=1.67265e-24
 years=3.156d7
 KeV = 1.16d7
 
-!parameters
+!General parameters
 rho0nfw=7.35d-26
 rs=435.7*cmkpc
 rho0=2.03d-25		      !!central density/initial condition to be modified
@@ -37,14 +36,15 @@ r500=rvir/2.0d0
 fc=1.138799
 mvir=1.3e15*msol
 mbgc=1.d12*msol
-ahern=10.*cmkpc/(1.+2.**(0.5))
+ahern=12.*cmkpc/(1.+2.**(0.5))
+
+!Diffusion parameters
 zfesol= 1.8d-3
 zfe_ground = 0.4 * zfesol  !!background Z
 v_t = 200d6
 l_t = 20 * cmkpc
-!!Diffusion coefficient
 !D = 0.333333333 * v_t * l_t
-D=0.11*260d5*15*cmkpc   !!Rebusco
+D=0.11 * 260d5 * 15 * cmkpc   !!Rebusco
 
 !set the grid
 rmin = 0.*cmkpc
@@ -52,53 +52,52 @@ rmax = 3000.*cmkpc
 !Original domain!
 do j=1,jmax
    r(j)=rmin+(j-1)*rmax/(jmax-1)    !!r_j
-enddo
+end do
 !Shifted domain!
 do j=1,jmax-1
    rr(j)=r(j)+0.5*(r(j+1)-r(j))     !!r_j+1/2
-enddo
+end do
 rr(jmax)=rr(jmax-1)+(rr(jmax-1)-rr(jmax-2))
 
 !!volumes of centered shells on the shifted domain!!
 vol(1)=4.1888*r(1)**3
 do j=2,jmax
    vol(j)=4.1888*(r(j)**3-r(j-1)**3)   
-enddo
+end do
 
 !!DM density profile
 !!Cycle on the Shifted domain!!
 do j=1,jmax
    x=rr(j)/rs
    rhonfw(j)=rho0nfw/(x*(1.+x)**2)
-enddo
+end do
 
+!!Masses
 mnfw(1)=0.
 mdark(1)=0.
 mhern(1)=0.
 mdm_analytic(1)=0.
 mdm_analytic(1)=0.
-!!Cycle on the Original domain!!
-do j=2,jmax 	
+do j=2,jmax 	!!Cycle on the Original domain!!
    x=r(j)/rs
    mnfw(j)=mnfw(j-1)+rhonfw(j-1)*vol(j)					                     !!DM mass discrete NFW formula in pdf centered in j-1/2
    mdm_analytic(j)=4*3.14*rho0nfw*(rs**3)*(log(1.+x)-(r(j)/(r(j)+rs)))     !!DM analytical
    mdark(j)=mvir*(log(1.+x)-x/(1.+x))/fc				                        !!DM analytic NFW formula
    mhern(j)=mbgc*r(j)**2/(r(j)+ahern)**2				                        !!analytic stellar mass
-enddo
+end do
 
 !!Temperature profile from a given analytical function !!
 do j=1, jmax
     y=rr(j)/r500
     T(j)=ticm*1.35d0*((y/0.045d0)**1.9+0.45d0)/((y/0.045d0)**1.9+1)*(1+(y/0.6d0)**2)**(-0.45)
     lnT(j)=log(T(j))
-enddo
+end do
 
-!!Gravitational energy
+!!Gravitational force
 grvnfw(1)=0.
-!!!!Cycle on the Original domain!!
-do j=2,jmax
-   grvnfw(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2		!!already takes into account the mass of the central galaxy BCG
-enddo
+do j=2,jmax        !!!!Cycle on the Original domain!!
+   grvnfw(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2		
+end do
 
 !Calculate the gas density
 lnd(1)=log(rho0)       
@@ -107,18 +106,19 @@ do j=2,jmax
    gg=grvnfw(j)
    T_j =0.5*(T(j)+T(j-1))
    lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
-enddo
+end do
 do j=1,jmax
    rho(j)=exp(lnd(j))  
-enddo
+end do
 
-!!Cycle on the Shifted domain!!
+!!Gas mass
 Mgas(1)=0.
-do j=2,jmax
+do j=2,jmax        !!Cycle on the Shifted domain!!
    Mgas(j)=Mgas(j-1)+rho(j-1)*vol(j)
-enddo
+end do
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!NOW THE REAL FE DIFFUSION PART STARTS!!!!!!!!!!!!!!!!!!!!!!!!!!!! ************************************************************************************************
-!!!!!!!!!!!Files for the final values!!!!!!!!
+!!!!!!!!!!!Files for the final values at different times!!!!!!!!
 open(20, file='final_zfe_diff1.dat')
 open(30, file='final_zfe_diff2.dat')
 open(40, file= 'final_zfe_diff5.dat')
@@ -147,43 +147,43 @@ do j = 1, jmax
   !!!From cleaned data!!!
    rho_fe_ex(j) = rho(j) * zfe_ex(j)/1.4
 end do
+
 !!!!!!!!!!!!!!!!!!Computing the initial mass of the iron profile""""""""""""""""""
 M0_fe(1) = 0.
 do j=2,jmax
      M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
 end do
 
-!!!!! Setting the initial condition
+!!!!! Setting the initial condition for the diffusion only case
 do j=1, jmax
    rho_fe(j)=rho_fe_ex(j)
    z_fe(j)=zfe_ex(j)
-enddo
+end do
 
 !!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
-print *, 'Final time: [yr] (1-2-5d9)'
+print *, 'Final time: [Gyr] (1-2-5)'
 read(*, *) t_final
-t_final = t_final* years
+t_final = t_final* years *1.0d9
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 n_cycle=t_final/dt
 time = 0.
 
 do n=1, int(n_cycle)
-!!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
- !! Cycle on the Shifted domain!!
- !!!Gradient of Zfe!!!
-  do  j=2,jmax-1
+  !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
+  !!!Gradient of Zfe!!!
+  do  j=2,jmax-1                  !! Cycle on the Shifted domain!!
     gradz_fe(j)=(z_fe(j)-z_fe(j-1))/(rr(j)-rr(j-1))  !! dZ/dr centered at "j" !!
   end do
   gradz_fe(1)= 0. 
   gradz_fe(jmax)= 0.
 
- !!!Medium values of the gas density in each shell!!!
+  !!!Medium values of the gas density in each shell!!!
   do j=2,jmax-1
-  !! Remember we are computing tha average value of the density which has been defined on the grid
+      !! Remember we are computing tha average value of the density which has been defined on the grid
       rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
       rho_j = 0.5 * (rho(j-1) + rho(j))  
-  !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
-
+      !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
+      !!Fe density
       rho_fe(j) = rho_fe(j) &
             + (dt/1.4)*(r(j+1)**2*D*rho_jp1*gradz_fe(j+1) &
             -r(j)**2*D*rho_j*gradz_fe(j))   &
@@ -203,7 +203,6 @@ do n=1, int(n_cycle)
 !ABUNDANCE!
 z_fe(1) = z_fe(2) 
 z_fe(jmax) = z_fe(jmax-1)
-
 !FE DENSITY!
 rho_fe(1) = rho_fe(2)
 rho_fe(jmax) = rho_fe(jmax-1)
@@ -212,27 +211,28 @@ time = time + dt
 end do
 !!!!!!!!!!Time cycle finished!!!!!!!!!**************************
 
-!!to check if at the end time=t_final (note time is always <t_final that's way later we aren't imposing the equality)
-print*, 'Final time', time/years    
+!!To check if at the end time=t_final (note time is always <t_final that's way later we aren't imposing the equality)
+print*, 'Final time', time/years 
+
 !!To check MASS CONSERVATION
 Print*, "Initial Fe Mass (< 100kpc)=", M0_fe(166)/ msol, "masse solari"     !!element 166 corresponds to radius 100 kpc
 
 !Writing the final values rho_fe, z_fe, M_fe(<100 kpc)
-!!Case diffusion after 1Gyr
+!!After 1Gyr
 if ((time/years) .le. 1d9) then     
    do j=1, jmax
       write (20, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
    end do
    print*, 'Final Fe Mass(<100 kpc)=', M_fe(166)/msol, 'masse solari per time=', time/years 
 end if
-!!Case after 2 Gyr
+!!After 2 Gyr
 if ((time/years) .ge. 1d9 .and. (time/years) .le. 2d9) then
    do j=1, jmax
       write (30, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
    end do
    print*, 'Final Fe Mass(<100 kpc)=', M_fe(166)/msol, 'masse solari per time=', time/years 
 end if
-!!Case after 5 Gyr
+!!After 5 Gyr
 if ((time/years) .ge. 2d9 .and. (time/years) .le. 5d9) then
    do j=1, jmax
       write (40, 1005) r(j)/cmkpc, rho_fe_obs(j), rho_fe(j), zfe_obs(j)/zfesol, zfe_ex(j)/zfesol, z_fe(j)/zfesol
