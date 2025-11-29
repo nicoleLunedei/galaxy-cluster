@@ -12,14 +12,13 @@ real*8, dimension(jmax) :: r,rr,vol,mnfw,&
         zfe_obs,& !!!!Variables for diffusion program
         zfe_ex, rho_fe_ex, z_fe, rho_fe, gradz_fe,rho_fe_obs,&
         M0_fe, M_fe, s_fe, rho_hern
-   
 
 !!!!Declaration of real numerical values!!!!
 real*8 :: msol,mu,mp,rmin,rmax,mvir,rvir,mbgc,ahern,&
           zfesol,zfe_ground,T_j,rho_jp1,rho_j, dt, D, t_now, time, n_cycle, v_t, l_t,&
           alpha_hern, alpha_Ia, zfe_Ia, coeff, M_fe_theor, pi
+          
 !constants
-
 msol = 1.989d33
 cmkpc = 3.084e21
 mu=0.62
@@ -28,19 +27,22 @@ guniv=6.6720e-8
 mp=1.67265e-24
 years=3.156d7
 KeV = 1.16d7
+pi = 3.14159265359
 t_now=13.7d9*years
 
-!parametri del problema
+!General parameters
 rho0nfw=7.35d-26
 rs=435.7*cmkpc
-rho0=2.03d-25 		      !!central density/initial condition
-ticm=8.9d7		      !!temperature of the ICM
+rho0=2.03d-25  !!
+ticm=8.9d7		   
 rvir=2797.*cmkpc
 r500=rvir/2.0d0
 fc=1.138799
 mvir=1.3e15*msol
 mbgc=1.d12*msol
 ahern=12.*cmkpc/(1.+2.**(0.5))
+
+!!Diffusion and source parameters
 zfesol= 1.8d-3
 zfe_ground = 0.4 * zfesol
 zfe_Ia=0.744/1.4
@@ -48,7 +50,6 @@ v_t = 200d6
 l_t = 20 * cmkpc
 !D = 0.333333333* v_t * l_t
 D = 0.11 * 260d5 * 15 * cmkpc
-pi = 3.14159265359
 
 !set the grid
 rmin = 0.*cmkpc
@@ -60,14 +61,14 @@ enddo
 !Shifted domain!
 do j=1,jmax-1
    rr(j)=r(j)+0.5*(r(j+1)-r(j))     !!r_j+1/2
-enddo
+end do
 rr(jmax)=rr(jmax-1)+(rr(jmax-1)-rr(jmax-2))
 
 !!volumes of centered shells on the shifted domain!!
 vol(1)=4.1888*r(1)**3
 do j=2,jmax
    vol(j)=4.1888*(r(j)**3-r(j-1)**3)   
-enddo
+end do
 
 !!DM density profile
 !!Cycle on the Shifted domain!!
@@ -88,39 +89,39 @@ do j=2,jmax
    mdm_analytic(j)=4*3.14*rho0nfw*(rs**3)*(log(1.+x)-(r(j)/(r(j)+rs)))     !!DM analytical
    mdark(j)=mvir*(log(1.+x)-x/(1.+x))/fc				                        !!DM analytic NFW formula
    mhern(j)=mbgc*r(j)**2/(r(j)+ahern)**2				                        !!analytic stellar mass
-enddo
+end do
 
 !! Temperature profile from a given analytical function !!
 do j=1, jmax
     y=rr(j)/r500
     T(j)=ticm*1.35d0*((y/0.045d0)**1.9+0.45d0)/((y/0.045d0)**1.9+1)*(1+(y/0.6d0)**2)**(-0.45)
     lnT(j)=log(T(j))
-enddo
+end do
 
-!!gravitational energy
-grvnfw(1)=0.          !! ok per alone NFW, isotermo o beta-model
-!!!!Cycle on the Original domain!!
-do j=2,jmax
-   grvnfw(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2		!!already takes into account the mass of the central galaxy BCG
-enddo
+!!gravitational force
+grvnfw(1)=0.         
+do j=2,jmax        !!!!Cycle on the Original domain!!
+   grvnfw(j)=guniv*(mnfw(j)+mhern(j))/r(j)**2		
+end do
 
-!calculate the gas density
+!Calculate the gas density
 lnd(1)=log(rho0)      
 !!Cycle on the Shifted domain for the density and the original domain for the temperature!!
 do j=2,jmax
    gg=grvnfw(j)
    T_j = 0.5*(T(j)+T(j-1))
    lnd(j)=lnd(j-1)-(gg*(mu*mp)*(rr(j)-rr(j-1))/(boltz*T_j)+ lnT(j)-lnT(j-1))
-enddo
+end do
 do j=1,jmax
    rho(j)=exp(lnd(j))  
-enddo
+end do
 
-!!Cycle on the Shifted domain!!
+!!Gas mass
 Mgas(1)=0.
-do j=2,jmax
+do j=2,jmax        !!Cycle on the Shifted domain!!
    Mgas(j)=Mgas(j-1)+rho(j-1)*vol(j)
-enddo
+end do
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!NOW THE REAL FE DIFFUSION PART STARTS!!!!!!!!!!!!!!!!!!!!!!!!!!!! ************************************************************************************************+
 !!!!!!!!!!!Files for the final values!!!!!!!!
 open(30, file='final_fe_source_coeff.dat')   !!file for the variable coefficients case
@@ -150,7 +151,7 @@ end do
 M0_fe(1) = 0.
 do j=2,jmax
    M0_fe(j)=M0_fe(j-1)+rho_fe_ex(j-1)*vol(j) 
-enddo
+end do
 
 !!!!! Setting the Fe profile at t=0: for the source Z_fe(t=0)=0
 do j=1, jmax
@@ -159,9 +160,9 @@ do j=1, jmax
 end do
 
 !!!!!!!!!TIME CYCLE!!!!!!!!!!!!!!!!!!!!***************************************************************************
-print *, 'Initial time: [yr]'       !!Initial time based on how long we want the time integration range, it's equal to t_now-(time interval)
-read(*, *) time                     !!ex. to see the evolution in 5 Gyr, initial time= 13.7-5=8.7 Gyr
-time = time* years
+print *, 'Initial time: [Gyr]'       !!Initial time based on how long we want the time integration range, it's equal to t_now-(time interval)
+read(*, *) time                     !!ex. to see the evolution in 5 Gyr, initial time= 13.7-5=8.7 Gyr so write 8.7
+time = time* years *1.0d9
 dt = 0.4 * (r(5) - r(4))**2 / (2. * D)
 n_cycle=(t_now-time)/dt
 !Print*, "Intervallo temporale ", dt
@@ -175,6 +176,7 @@ do n=1, int(n_cycle)
    !!!!!!!!!Variable source coefficients
    alpha_hern=4.7d-20 * (time/t_now)**(-1.26)  !!NB: time non inizia più da 0 ora inizia dal valore in input (8.7d9, 10.7d9...), t_final=t_now
    alpha_Ia=8.87d-22 *(time/t_now)**(-1.1)
+   
   !!!!!!!!!!!!!!Computing the grad Zfe!!!!!!!!!!!!!!
   !! Cycle on the Shifted domain!!
   !!!Gradient of Zfe!!!
@@ -186,13 +188,13 @@ do n=1, int(n_cycle)
 
   !!!Medium values of the gas density in each shell!!!
   do j=2,jmax-1
-  !! Remember we are computing tha average value of the density which has been defined on the grid
+      !! Remember we are computing tha average value of the density which has been defined on the grid
       rho_jp1 = 0.5 * (rho(j+1) + rho(j)) 
       rho_j = 0.5 * (rho(j-1) + rho(j))  
-  !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
+      !! So now we have the gas density on the grid r(j), and note that they are numeric values not vectors
 
-!!!!!!!!!!!!!!!!!!!!!Source function: Stellar winds & SNIa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     !! Stellar density hern
+      !!!!!!!!!!!!!!!!!!!!!Source function: Stellar winds & SNIa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !! Stellar density hern
       rho_hern(j) = (mbgc * ahern)/ (2 * pi * rr(j) * ((rr(j) + ahern)**3)) 
       if (coeff==1) then
          s_fe(j)=rho_hern(j)*(alpha_hern*zfesol/1.4 + alpha_Ia*zfe_Ia)   !!variable coefficients
@@ -201,11 +203,11 @@ do n=1, int(n_cycle)
          s_fe(j) = rho_hern(j) * (6d-23 + 4.7d-22)          !!constant coefficients
       end if
       
-!!!!!!!!!!!!!!!!!!!!!Fe density!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!Fe density!!!!!!!!!!!!!!!!!!!!!!!!!
       rho_fe(j) = rho_fe(j) + dt*s_fe(j)
-   !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!Getting the abundance from the rho_fe!!!!!!!!!!!!!!!!!!!!!!
       z_fe(j)=1.4*rho_fe(j)/rho(j)  !! update Z_Fe with the new rho_Fe
-   !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!So now we are happy because we have the Fe density !!!!!!!!!!!!!!!!!
    end do
 
    !!Computing the Fe mass
@@ -214,18 +216,25 @@ do n=1, int(n_cycle)
       M_fe(j)=M_fe(j-1)+rho_fe(j-1)*vol(j)
    end do
 !!!!!!!!!!Radial cyle finished!!!!!!!!
-!!(1) = (2), (jmax) = (jmax-1)!!
+
+!!Boundary conditions: (1) = (2), (jmax) = (jmax-1)!!
 z_fe(1)=z_fe(2)
 z_fe(jmax)=z_fe(jmax-1)
 rho_fe(1)=rho_fe(2)
 rho_fe(jmax)=rho_fe(jmax-1)
+
+!Updating time
 time = time + dt
 end do
 !!!!!!!!!!Time cycle finished!!!!!!!!!
+
+!!Cheking mass conservation confronting M_final with the theoretical value
 M_fe_theor=(5.3d-22)*mhern(jmax)*5d9*years
 Print*, "Final Fe Mass (< 100kpc)", M_fe(166)/ msol, "masse solari"
 Print*, "Final Fe Mass (all cluster)", M_fe(5000)/ msol, "masse solari"
 print*, "Theoretical Fe Mass:", M_fe_theor/msol, "masse solari"
+
+!!Writing the results
 do j=1, jmax
    !write(50, 1006) r(j)/cmkpc, M0_fe(j)/msol, M_fe(j)/msol
    if (coeff==1) then
