@@ -1,6 +1,5 @@
 !******************************************************************
-!  Programma non ottimizzato con BCG + gradT e calcolo di rhobest
-! (prima versione di Andrea)
+!  Programma calcolo di rhobest senza turbolenza (prima versione di Andrea)
 !*****************************************************************
 
 parameter(jmax=5000)
